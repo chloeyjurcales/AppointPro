@@ -60,7 +60,7 @@ export default function FacultySignUpScreen({
 
           <Text style={styles.heading}>Create Faculty Account</Text>
           <Text style={styles.subheading}>
-            Find your details to create your faculty account.
+            Find. your details to create your faculty account.
           </Text>
 
           <Text style={styles.label}>Full Name</Text>
