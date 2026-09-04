@@ -9,32 +9,30 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import AuthInput from '../components/AuthInput';
 
-type StudentSignUpScreenProps = {
-  onBack?: () => void;
-  onLogin?: () => void;
-  onCreateAccount?: (data: {
-    fullName: string;
-    studentId: string;
-    email: string;
-    password: string;
-    confirmPassword: string;
-  }) => void;
+type StudentProfileData = {
+  fullName: string;
+  studentId: string;
+  email: string;
+  department: string;
+  yearLevel: string;
 };
 
-export default function StudentSignUpScreen({
-  onBack,
-  onLogin,
-  onCreateAccount,
-}: StudentSignUpScreenProps) {
+type CompleteStudentProfileScreenProps = {
+  onContinue?: (data: StudentProfileData) => void;
+};
+
+export default function CompleteStudentProfileScreen({
+  onContinue,
+}: CompleteStudentProfileScreenProps) {
   const [fullName, setFullName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [department, setDepartment] = useState('');
+  const [yearLevel, setYearLevel] = useState('');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -46,19 +44,15 @@ export default function StudentSignUpScreen({
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={20} color={colors.textDark} />
-          </TouchableOpacity>
-
           <View style={styles.avatarWrap}>
             <View style={styles.avatarCircle}>
               <FontAwesome5 name="graduation-cap" size={26} color={colors.white} />
             </View>
           </View>
 
-          <Text style={styles.heading}>Create Student Account</Text>
+          <Text style={styles.heading}>Complete Your Profile</Text>
           <Text style={styles.subheading}>
-            Find your details to create your student account.
+            Tell us a bit more about yourself before you get started.
           </Text>
 
           <Text style={styles.label}>Full Name</Text>
@@ -90,54 +84,32 @@ export default function StudentSignUpScreen({
 
           <View style={styles.spacerSm} />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>Department</Text>
           <AuthInput
-            icon="lock-closed-outline"
-            placeholder="Create a password"
-            value={password}
-            onChangeText={setPassword}
-            isPassword
+            placeholder="Enter your department"
+            value={department}
+            onChangeText={setDepartment}
+            autoCapitalize="words"
           />
 
           <View style={styles.spacerSm} />
 
-          <Text style={styles.label}>Confirm Password</Text>
+          <Text style={styles.label}>Year Level</Text>
           <AuthInput
-            icon="lock-closed-outline"
-            placeholder="Confirm your password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            isPassword
+            placeholder="e.g. 3rd Year"
+            value={yearLevel}
+            onChangeText={setYearLevel}
           />
 
-          <View style={styles.infoBox}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={18}
-              color={colors.infoText}
-              style={styles.infoIcon}
-            />
-            <Text style={styles.infoText}>
-              Use at least 8 characters with a mix of letters, numbers, and symbols.
-            </Text>
-          </View>
-
           <TouchableOpacity
-            style={styles.createButton}
+            style={styles.continueButton}
             onPress={() =>
-              onCreateAccount?.({ fullName, studentId, email, password, confirmPassword })
+              onContinue?.({ fullName, studentId, email, department, yearLevel })
             }
             activeOpacity={0.85}
           >
-            <Text style={styles.createButtonText}>Create Account</Text>
+            <Text style={styles.continueButtonText}>Continue</Text>
           </TouchableOpacity>
-
-          <View style={styles.loginRow}>
-            <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={onLogin}>
-              <Text style={styles.link}>Log in</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -157,9 +129,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
-  },
-  backButton: {
-    marginBottom: spacing.md,
   },
   avatarWrap: {
     alignItems: 'center',
@@ -185,6 +154,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   label: {
     fontSize: 12,
@@ -195,49 +165,17 @@ const styles = StyleSheet.create({
   spacerSm: {
     height: spacing.sm,
   },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.infoBg,
-    borderRadius: 10,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  infoIcon: {
-    marginRight: 8,
-    marginTop: 1,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.infoText,
-    lineHeight: 17,
-  },
-  createButton: {
+  continueButton: {
     backgroundColor: colors.primary,
     borderRadius: 10,
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginTop: spacing.lg,
   },
-  createButtonText: {
+  continueButtonText: {
     color: colors.white,
     fontWeight: '700',
     fontSize: 15,
-  },
-  loginRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  loginText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  link: {
-    fontSize: 12,
-    color: colors.link,
-    fontWeight: '700',
   },
 });

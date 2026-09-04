@@ -7,9 +7,9 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
-import BottomTabBar, { TabKey } from '../components/BottomTabBar';
+import FacultyBottomTabBar, { FacultyTabKey } from '../components/FacultyBottomTabBar';
 
 type NotificationItem = {
   id: string;
@@ -17,66 +17,72 @@ type NotificationItem = {
   title: string;
   description: string;
   time: string;
+  unread: boolean;
 };
 
 const NOTIFICATIONS: NotificationItem[] = [
   {
     id: '1',
     icon: 'notifications-outline',
-    title: 'Appointment Reminder',
-    description: 'You have an appointment today at 10:00 AM.',
+    title: 'New Appointment',
+    description: 'Maria Clara booked an appointment',
     time: '8:00 AM',
+    unread: false,
   },
   {
     id: '2',
     icon: 'sync-outline',
-    title: 'Queue Update',
-    description: "You're next in line.",
-    time: '9:30 AM',
+    title: 'Reschedule Request',
+    description: 'Chloey Lyca Jurcales requested for a reschedule',
+    time: '10:20 AM',
+    unread: false,
   },
   {
     id: '3',
-    icon: 'megaphone-outline',
-    title: 'Faculty Announcement',
-    description: 'New schedule for this week.',
-    time: '7:30 AM',
+    icon: 'sync-outline',
+    title: 'Walk in Queue Update',
+    description: 'New walk-in added, you are now servicing #2',
+    time: '7:00 AM',
+    unread: false,
   },
   {
     id: '4',
-    icon: 'notifications-outline',
-    title: 'Appointment Reminder',
-    description: 'You have an appointment today at 11:00 AM.',
-    time: '8:00 AM',
+    icon: 'information-circle-outline',
+    title: 'System Update',
+    description: 'Your schedule for next week has been updated.',
+    time: '9:00 AM',
+    unread: true,
   },
   {
     id: '5',
-    icon: 'sync-outline',
-    title: 'Queue Update',
-    description: "You're next in line.",
-    time: '11:30 AM',
+    icon: 'notifications-outline',
+    title: 'Reminder',
+    description: 'You have 3 appointments tommorow.',
+    time: '11:20 AM',
+    unread: true,
   },
 ];
 
-type NotificationsScreenProps = {
-  onMenuPress?: () => void;
+type FacultyNotificationsScreenProps = {
+  onBack?: () => void;
   onMorePress?: () => void;
   onMarkAllRead?: () => void;
   onSelectNotification?: (item: NotificationItem) => void;
-  onTabChange?: (tab: TabKey) => void;
+  onTabChange?: (tab: FacultyTabKey) => void;
 };
 
-export default function NotificationsScreen({
-  onMenuPress,
+export default function FacultyNotificationsScreen({
+  onBack,
   onMorePress,
   onMarkAllRead,
   onSelectNotification,
   onTabChange,
-}: NotificationsScreenProps) {
+}: FacultyNotificationsScreenProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onMenuPress}>
-          <Ionicons name="menu" size={24} color={colors.textDark} />
+        <TouchableOpacity onPress={onBack}>
+          <Ionicons name="arrow-back" size={22} color={colors.textDark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         <TouchableOpacity onPress={onMorePress}>
@@ -84,26 +90,40 @@ export default function NotificationsScreen({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>Today</Text>
+      <View style={styles.markReadRow}>
         <TouchableOpacity onPress={onMarkAllRead}>
-          <Text style={styles.link}>Mark all as read</Text>
+          <Text style={styles.markReadText}>Mark as all read</Text>
         </TouchableOpacity>
       </View>
+
+      <Text style={styles.sectionTitle}>Today</Text>
 
       <FlatList
         data={NOTIFICATIONS}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <TouchableOpacity
-            style={styles.row}
+            style={[
+              styles.row,
+              item.unread && styles.rowUnread,
+              index < NOTIFICATIONS.length - 1 && !item.unread && styles.rowBorder,
+            ]}
             onPress={() => onSelectNotification?.(item)}
             activeOpacity={0.7}
           >
-            <View style={styles.iconWrap}>
-              <Ionicons name={item.icon} size={18} color={colors.primary} />
-            </View>
+            <MaterialCommunityIcons
+              name={
+                item.icon === 'sync-outline'
+                  ? 'autorenew'
+                  : item.icon === 'information-circle-outline'
+                  ? 'information-outline'
+                  : 'bell-outline'
+              }
+              size={20}
+              color={colors.textDark}
+              style={styles.icon}
+            />
             <View style={styles.textWrap}>
               <Text style={styles.itemTitle}>{item.title}</Text>
               <Text style={styles.itemDesc}>{item.description}</Text>
@@ -113,7 +133,7 @@ export default function NotificationsScreen({
         )}
       />
 
-      <BottomTabBar active="notifications" onChange={onTabChange} />
+      <FacultyBottomTabBar active="notifications" onChange={onTabChange} />
     </SafeAreaView>
   );
 }
@@ -135,22 +155,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textDark,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  markReadRow: {
+    alignItems: 'flex-end',
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
+  },
+  markReadText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.link,
   },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.textDark,
-  },
-  link: {
-    fontSize: 12,
-    color: colors.link,
-    fontWeight: '600',
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
   listContent: {
     paddingHorizontal: spacing.lg,
@@ -160,17 +180,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 8,
+  },
+  rowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.tabInactiveBg,
-    alignItems: 'center',
-    justifyContent: 'center',
+  rowUnread: {
+    borderWidth: 1.5,
+    borderColor: '#3B82F6',
+    marginBottom: spacing.sm,
+  },
+  icon: {
     marginRight: spacing.md,
+    marginTop: 2,
   },
   textWrap: {
     flex: 1,

@@ -13,30 +13,41 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import AuthInput from '../components/AuthInput';
 
-type FacultySignUpScreenProps = {
-  onBack?: () => void;
-  onLogin?: () => void;
-  onCreateAccount?: (data: {
-    fullName: string;
-    facultyId: string;
-    email: string;
-    department: string;
-    password: string;
-    confirmPassword: string;
-  }) => void;
+type ConsultationType = 'face-to-face' | 'online';
+
+type FacultyProfileData = {
+  fullName: string;
+  email: string;
+  department: string;
+  consultationTypes: ConsultationType[];
+  facultyId: string;
 };
 
-export default function FacultySignUpScreen({
-  onBack,
-  onLogin,
-  onCreateAccount,
-}: FacultySignUpScreenProps) {
+type CompleteFacultyProfileScreenProps = {
+  onContinue?: (data: FacultyProfileData) => void;
+};
+
+const CONSULTATION_OPTIONS: { key: ConsultationType; label: string }[] = [
+  { key: 'face-to-face', label: 'Face-to-Face' },
+  { key: 'online', label: 'Online' },
+];
+
+export default function CompleteFacultyProfileScreen({
+  onContinue,
+}: CompleteFacultyProfileScreenProps) {
   const [fullName, setFullName] = useState('');
-  const [facultyId, setFacultyId] = useState('');
   const [email, setEmail] = useState('');
   const [department, setDepartment] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [consultationTypes, setConsultationTypes] = useState<ConsultationType[]>([
+    'face-to-face',
+  ]);
+  const [facultyId, setFacultyId] = useState('');
+
+  const toggleConsultationType = (key: ConsultationType) => {
+    setConsultationTypes((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -48,19 +59,15 @@ export default function FacultySignUpScreen({
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={20} color={colors.textDark} />
-          </TouchableOpacity>
-
           <View style={styles.avatarWrap}>
             <View style={styles.avatarCircle}>
               <Ionicons name="person" size={26} color={colors.white} />
             </View>
           </View>
 
-          <Text style={styles.heading}>Create Faculty Account</Text>
+          <Text style={styles.heading}>Complete Your Profile</Text>
           <Text style={styles.subheading}>
-            Find your details to create your faculty account.
+            Tell us a bit more about yourself before you get started.
           </Text>
 
           <Text style={styles.label}>Full Name</Text>
@@ -69,15 +76,6 @@ export default function FacultySignUpScreen({
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
-          />
-
-          <View style={styles.spacerSm} />
-
-          <Text style={styles.label}>Faculty ID</Text>
-          <AuthInput
-            placeholder="Enter your faculty ID"
-            value={facultyId}
-            onChangeText={setFacultyId}
           />
 
           <View style={styles.spacerSm} />
@@ -102,61 +100,45 @@ export default function FacultySignUpScreen({
 
           <View style={styles.spacerSm} />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>Faculty ID</Text>
           <AuthInput
-            icon="lock-closed-outline"
-            placeholder="Create a password"
-            value={password}
-            onChangeText={setPassword}
-            isPassword
+            placeholder="Enter your faculty ID"
+            value={facultyId}
+            onChangeText={setFacultyId}
           />
 
-          <View style={styles.spacerSm} />
+          <View style={styles.spacerMd} />
 
-          <Text style={styles.label}>Confirm Password</Text>
-          <AuthInput
-            icon="lock-closed-outline"
-            placeholder="Confirm your password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            isPassword
-          />
-
-          <View style={styles.infoBox}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={18}
-              color={colors.infoText}
-              style={styles.infoIcon}
-            />
-            <Text style={styles.infoText}>
-              Use at least 8 characters with a mix of letters, numbers, and symbols.
-            </Text>
+          <Text style={styles.label}>Consultation Type</Text>
+          <Text style={styles.helperText}>Select one or more</Text>
+          <View style={styles.typeRow}>
+            {CONSULTATION_OPTIONS.map((opt) => {
+              const isActive = consultationTypes.includes(opt.key);
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={styles.typeOption}
+                  onPress={() => toggleConsultationType(opt.key)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkboxOuter, isActive && styles.checkboxOuterActive]}>
+                    {isActive && <Ionicons name="checkmark" size={14} color={colors.white} />}
+                  </View>
+                  <Text style={styles.typeLabel}>{opt.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <TouchableOpacity
-            style={styles.createButton}
+            style={styles.continueButton}
             onPress={() =>
-              onCreateAccount?.({
-                fullName,
-                facultyId,
-                email,
-                department,
-                password,
-                confirmPassword,
-              })
+              onContinue?.({ fullName, email, department, consultationTypes, facultyId })
             }
             activeOpacity={0.85}
           >
-            <Text style={styles.createButtonText}>Create Account</Text>
+            <Text style={styles.continueButtonText}>Continue</Text>
           </TouchableOpacity>
-
-          <View style={styles.loginRow}>
-            <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={onLogin}>
-              <Text style={styles.link}>Log in</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -176,9 +158,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
-  },
-  backButton: {
-    marginBottom: spacing.md,
   },
   avatarWrap: {
     alignItems: 'center',
@@ -204,6 +183,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   label: {
     fontSize: 12,
@@ -211,52 +191,54 @@ const styles = StyleSheet.create({
     color: colors.textDark,
     marginBottom: 6,
   },
+  helperText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
   spacerSm: {
     height: spacing.sm,
   },
-  infoBox: {
+  spacerMd: {
+    height: spacing.md,
+  },
+  typeRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.infoBg,
-    borderRadius: 10,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
+    gap: spacing.lg,
   },
-  infoIcon: {
-    marginRight: 8,
-    marginTop: 1,
+  typeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  infoText: {
-    flex: 1,
+  checkboxOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  checkboxOuterActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  typeLabel: {
     fontSize: 12,
-    color: colors.infoText,
-    lineHeight: 17,
+    color: colors.textDark,
   },
-  createButton: {
+  continueButton: {
     backgroundColor: colors.primary,
     borderRadius: 10,
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginTop: spacing.lg,
   },
-  createButtonText: {
+  continueButtonText: {
     color: colors.white,
     fontWeight: '700',
     fontSize: 15,
-  },
-  loginRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  loginText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  link: {
-    fontSize: 12,
-    color: colors.link,
-    fontWeight: '700',
   },
 });

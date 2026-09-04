@@ -7,8 +7,8 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import Logo from '../components/Logo';
@@ -84,16 +84,13 @@ export default function LoginScreen({
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>
-            {isStudent ? 'Email or Student ID' : 'Email or Faculty ID'}
-          </Text>
+          <Text style={styles.label}>Email</Text>
           <AuthInput
             icon="mail-outline"
-            placeholder={
-              isStudent ? 'Enter your email or student ID' : 'Enter your email or Faculty ID'
-            }
+            placeholder="Enter your email"
             value={identifier}
             onChangeText={setIdentifier}
+            keyboardType="email-address"
           />
 
           <View style={styles.spacerSm} />

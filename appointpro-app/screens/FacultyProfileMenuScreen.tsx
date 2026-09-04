@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
-import BottomTabBar, { TabKey } from '../components/BottomTabBar';
+import FacultyBottomTabBar, { FacultyTabKey } from '../components/FacultyBottomTabBar';
 
 type MenuItem = {
   key: string;
@@ -19,29 +19,29 @@ type MenuItem = {
   onPress?: () => void;
 };
 
-type ProfileScreenProps = {
+type FacultyProfileMenuScreenProps = {
   name?: string;
-  role?: string;
-  studentId?: string;
-  email?: string;
   department?: string;
-  yearLevel?: string;
+  employeeId?: string;
+  email?: string;
+  fullDepartment?: string;
+  consultationTypes?: string;
   photoUri?: string;
   onBack?: () => void;
   onPersonalInformation?: () => void;
   onChangePassword?: () => void;
   onAbout?: () => void;
   onLogout?: () => void;
-  onTabChange?: (tab: TabKey) => void;
+  onTabChange?: (tab: FacultyTabKey) => void;
 };
 
-export default function ProfileScreen({
-  name = 'Chloey Lyca Jurcales',
-  role = 'BSIT Student',
-  studentId = '2023-00123',
-  email = 'chloeyju@gmail.com',
-  department = 'College of Computer Studies',
-  yearLevel = '3rd Year',
+export default function FacultyProfileMenuScreen({
+  name = 'Dr. Juan DelaCruz',
+  department = 'Computer Studies',
+  employeeId = '2023-00123',
+  email = 'juandelacruz@gmail.com',
+  fullDepartment = 'Computer Studies Socsiety',
+  consultationTypes = 'Face-to-Face   Online',
   photoUri,
   onBack,
   onPersonalInformation,
@@ -49,7 +49,7 @@ export default function ProfileScreen({
   onAbout,
   onLogout,
   onTabChange,
-}: ProfileScreenProps) {
+}: FacultyProfileMenuScreenProps) {
   const menuItems: MenuItem[] = [
     { key: 'personal', icon: 'person-outline', label: 'Personal Information', onPress: onPersonalInformation },
     { key: 'password', icon: 'lock-closed-outline', label: 'Change Password', onPress: onChangePassword },
@@ -75,13 +75,13 @@ export default function ProfileScreen({
           </View>
 
           <Text style={styles.name}>{name}</Text>
-          <Text style={styles.role}>{role}</Text>
+          <Text style={styles.department}>{department}</Text>
         </View>
 
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Student ID</Text>
-            <Text style={styles.infoValue}>{studentId}</Text>
+            <Text style={styles.infoLabel}>Employee ID</Text>
+            <Text style={styles.infoValue}>{employeeId}</Text>
           </View>
 
           <View style={styles.infoBlock}>
@@ -91,12 +91,12 @@ export default function ProfileScreen({
 
           <View style={styles.infoBlock}>
             <Text style={styles.infoLabel}>Department</Text>
-            <Text style={styles.infoValueMuted}>{department}</Text>
+            <Text style={styles.infoValueMuted}>{fullDepartment}</Text>
           </View>
 
           <View style={styles.infoBlock}>
-            <Text style={styles.infoLabel}>Year Level</Text>
-            <Text style={styles.infoValueMuted}>{yearLevel}</Text>
+            <Text style={styles.infoLabel}>Consultation Type</Text>
+            <Text style={styles.infoValueMuted}>{consultationTypes}</Text>
           </View>
         </View>
 
@@ -125,7 +125,7 @@ export default function ProfileScreen({
         </View>
       </ScrollView>
 
-      <BottomTabBar active="profile" onChange={onTabChange} />
+      <FacultyBottomTabBar active="profile" onChange={onTabChange} />
     </SafeAreaView>
   );
 }
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
   },
-  role: {
+  department: {
     fontSize: 12,
     color: '#E9C7CE',
     marginTop: 2,
@@ -185,6 +185,8 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     marginBottom: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   infoBlock: {
     marginBottom: spacing.md,

@@ -1,32 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';
-
-type ScheduleSlot = {
-  id: string;
-  date: string;
-  time: string;
-};
-
-const SCHEDULE: ScheduleSlot[] = [
-  { id: '1', date: 'May 13 (Tue)', time: '9:00 AM - 10:00 AM' },
-  { id: '2', date: 'May 15 (Thu)', time: '11:00 AM - 2:00 PM' },
-  { id: '3', date: 'May 16 (Fri)', time: '9:00 AM - 11:00 AM' },
-];
+import { WEEK_DAYS, SCHEDULE_BY_DATE, ScheduleSlot } from '../data/facultySchedule';
 
 type FacultyProfileScreenProps = {
   onBack?: () => void;
   onMorePress?: () => void;
-  onViewFullSchedule?: () => void;
+  onSelectSlot?: (date: number, slot: ScheduleSlot) => void;
   onContinue?: () => void;
   onTabChange?: (tab: TabKey) => void;
 };
@@ -34,10 +23,18 @@ type FacultyProfileScreenProps = {
 export default function FacultyProfileScreen({
   onBack,
   onMorePress,
-  onViewFullSchedule,
+  onSelectSlot,
   onContinue,
   onTabChange,
 }: FacultyProfileScreenProps) {
+  const firstAvailableDate =
+    WEEK_DAYS.find((d) => SCHEDULE_BY_DATE[d.date]?.some((s) => s.available))?.date ??
+    WEEK_DAYS[0].date;
+  const [selectedDate, setSelectedDate] = useState(firstAvailableDate);
+
+  const slotsForDate = SCHEDULE_BY_DATE[selectedDate] ?? [];
+  const selectedDay = WEEK_DAYS.find((d) => d.date === selectedDate);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -68,17 +65,7 @@ export default function FacultyProfileScreen({
             <Ionicons name="time-outline" size={18} color={colors.primary} style={styles.infoIcon} />
             <View style={styles.infoTextWrap}>
               <Text style={styles.infoLabel}>Consultation Type</Text>
-              <Text style={styles.infoValue}>Face-to-Face · Online · Both</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoDivider} />
-
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={18} color={colors.primary} style={styles.infoIcon} />
-            <View style={styles.infoTextWrap}>
-              <Text style={styles.infoLabel}>Office Location</Text>
-              <Text style={styles.infoValue}>Room 305, CHMC Main Campus</Text>
+              <Text style={styles.infoValue}>Face-to-Face · Online</Text>
             </View>
           </View>
 
@@ -95,30 +82,80 @@ export default function FacultyProfileScreen({
           </View>
         </View>
 
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Upcoming Schedule</Text>
-          <TouchableOpacity onPress={onViewFullSchedule}>
-            <Text style={styles.link}>View full schedule</Text>
-          </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Available Schedule</Text>
+
+        <View style={styles.dateRow}>
+          {WEEK_DAYS.map((d) => {
+            const isActive = d.date === selectedDate;
+            const hasAvailable = (SCHEDULE_BY_DATE[d.date] ?? []).some((s) => s.available);
+            return (
+              <TouchableOpacity
+                key={d.date}
+                style={[styles.dateChip, isActive && styles.dateChipActive]}
+                onPress={() => setSelectedDate(d.date)}
+              >
+                <Text style={[styles.dateDay, isActive && styles.dateTextActive]}>{d.day}</Text>
+                <Text style={[styles.dateNum, isActive && styles.dateTextActive]}>{d.date}</Text>
+                <View
+                  style={[
+                    styles.dateDot,
+                    hasAvailable
+                      ? isActive
+                        ? styles.dateDotActiveFilled
+                        : styles.dateDotFilled
+                      : styles.dateDotEmpty,
+                  ]}
+                />
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        <View style={styles.scheduleCard}>
-          {SCHEDULE.map((slot, index) => (
-            <View
+        <Text style={styles.selectedDayLabel}>{selectedDay?.fullLabel}</Text>
+
+        {slotsForDate.length === 0 ? (
+          <View style={styles.emptySchedule}>
+            <Ionicons name="calendar-outline" size={22} color={colors.textMuted} />
+            <Text style={styles.emptyScheduleText}>No slots offered this day.</Text>
+          </View>
+        ) : (
+          slotsForDate.map((slot) => (
+            <TouchableOpacity
               key={slot.id}
-              style={[
-                styles.scheduleRow,
-                index < SCHEDULE.length - 1 && styles.scheduleRowBorder,
-              ]}
+              style={[styles.slotCard, !slot.available && styles.slotCardDisabled]}
+              onPress={() => slot.available && onSelectSlot?.(selectedDate, slot)}
+              activeOpacity={slot.available ? 0.75 : 1}
+              disabled={!slot.available}
             >
-              <View style={styles.scheduleIconWrap}>
-                <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+              <View style={styles.slotIconWrap}>
+                <Ionicons
+                  name={slot.mode === 'Online' ? 'wifi-outline' : 'location-outline'}
+                  size={16}
+                  color={slot.available ? colors.primary : colors.textMuted}
+                />
               </View>
-              <Text style={styles.scheduleDate}>{slot.date}</Text>
-              <Text style={styles.scheduleTime}>{slot.time}</Text>
-            </View>
-          ))}
-        </View>
+              <View style={styles.slotTextWrap}>
+                <Text style={[styles.slotTime, !slot.available && styles.slotTextDisabled]}>
+                  {slot.time}
+                </Text>
+                <Text style={[styles.slotLocation, !slot.available && styles.slotTextDisabled]}>
+                  {slot.location}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.slotStatus,
+                  slot.available ? styles.slotStatusAvailable : styles.slotStatusBooked,
+                ]}
+              >
+                {slot.available ? 'Available' : 'Booked'}
+              </Text>
+              {slot.available && (
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={styles.slotChevron} />
+              )}
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -188,18 +225,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textDark,
     marginBottom: spacing.sm,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  link: {
-    fontSize: 12,
-    color: colors.link,
-    fontWeight: '600',
+    marginTop: spacing.md,
   },
   infoCard: {
     backgroundColor: colors.white,
@@ -234,40 +260,118 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginVertical: spacing.md,
   },
-  scheduleCard: {
+  dateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  dateChip: {
+    width: 36,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: colors.inputBackground,
+  },
+  dateChipActive: {
+    backgroundColor: colors.primary,
+  },
+  dateDay: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  dateNum: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textDark,
+    marginBottom: 4,
+  },
+  dateTextActive: {
+    color: colors.white,
+  },
+  dateDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  dateDotFilled: {
+    backgroundColor: colors.primary,
+  },
+  dateDotActiveFilled: {
     backgroundColor: colors.white,
+  },
+  dateDotEmpty: {
+    backgroundColor: 'transparent',
+  },
+  selectedDayLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  emptySchedule: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+  },
+  emptyScheduleText: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  slotCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingHorizontal: spacing.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
-  scheduleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
+  slotCardDisabled: {
+    backgroundColor: colors.inputBackground,
+    opacity: 0.7,
   },
-  scheduleRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  scheduleIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  slotIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.tabInactiveBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
   },
-  scheduleDate: {
+  slotTextWrap: {
     flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textDark,
   },
-  scheduleTime: {
+  slotTime: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textDark,
+    marginBottom: 2,
+  },
+  slotLocation: {
     fontSize: 11,
     color: colors.textMuted,
+  },
+  slotTextDisabled: {
+    color: colors.textMuted,
+  },
+  slotStatus: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginRight: spacing.xs,
+  },
+  slotStatusAvailable: {
+    color: colors.success,
+  },
+  slotStatusBooked: {
+    color: colors.danger,
+  },
+  slotChevron: {
+    marginLeft: 2,
   },
   footer: {
     paddingHorizontal: spacing.lg,

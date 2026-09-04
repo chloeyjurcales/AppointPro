@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';

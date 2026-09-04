@@ -5,8 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';
@@ -80,7 +80,6 @@ const STATUS_STYLES: Record<AppointmentStatus, StatusStyle> = {
 function matchesFilter(appointment: Appointment, filter: FilterKey) {
   if (filter === 'upcoming') return appointment.status === 'upcoming';
   if (filter === 'canceled') return appointment.status === 'canceled';
-  // "Completed" acts as a history tab: completed + canceled
   return appointment.status === 'completed' || appointment.status === 'canceled';
 }
 
@@ -209,13 +208,13 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
     paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     marginBottom: spacing.md,
   },
   filterTab: {
-    marginRight: spacing.lg,
     paddingBottom: spacing.sm,
     alignItems: 'center',
   },

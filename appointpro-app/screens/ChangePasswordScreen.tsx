@@ -9,35 +9,37 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import AuthInput from '../components/AuthInput';
 
-type StudentSignUpScreenProps = {
+type ChangePasswordScreenProps = {
   onBack?: () => void;
-  onLogin?: () => void;
-  onCreateAccount?: (data: {
-    fullName: string;
-    studentId: string;
-    email: string;
-    password: string;
+  onSave?: (data: {
+    currentPassword: string;
+    newPassword: string;
     confirmPassword: string;
   }) => void;
 };
 
-export default function StudentSignUpScreen({
+export default function ChangePasswordScreen({
   onBack,
-  onLogin,
-  onCreateAccount,
-}: StudentSignUpScreenProps) {
-  const [fullName, setFullName] = useState('');
-  const [studentId, setStudentId] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  onSave,
+}: ChangePasswordScreenProps) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack}>
+          <Ionicons name="arrow-back" size={22} color={colors.textDark} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Change Password</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
@@ -46,65 +48,43 @@ export default function StudentSignUpScreen({
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={20} color={colors.textDark} />
-          </TouchableOpacity>
-
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatarCircle}>
-              <FontAwesome5 name="graduation-cap" size={26} color={colors.white} />
+          <View style={styles.iconWrap}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="lock-closed-outline" size={26} color={colors.white} />
             </View>
           </View>
 
-          <Text style={styles.heading}>Create Student Account</Text>
+          <Text style={styles.heading}>Update Your Password</Text>
           <Text style={styles.subheading}>
-            Find your details to create your student account.
+            Choose a strong password you haven't used before.
           </Text>
 
-          <Text style={styles.label}>Full Name</Text>
-          <AuthInput
-            placeholder="Enter your full name"
-            value={fullName}
-            onChangeText={setFullName}
-            autoCapitalize="words"
-          />
-
-          <View style={styles.spacerSm} />
-
-          <Text style={styles.label}>Student ID</Text>
-          <AuthInput
-            placeholder="Enter your student ID"
-            value={studentId}
-            onChangeText={setStudentId}
-          />
-
-          <View style={styles.spacerSm} />
-
-          <Text style={styles.label}>Email Address</Text>
-          <AuthInput
-            placeholder="Enter your email address"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-          />
-
-          <View style={styles.spacerSm} />
-
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>Current Password</Text>
           <AuthInput
             icon="lock-closed-outline"
-            placeholder="Create a password"
-            value={password}
-            onChangeText={setPassword}
+            placeholder="Enter your current password"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
             isPassword
           />
 
           <View style={styles.spacerSm} />
 
-          <Text style={styles.label}>Confirm Password</Text>
+          <Text style={styles.label}>New Password</Text>
           <AuthInput
             icon="lock-closed-outline"
-            placeholder="Confirm your password"
+            placeholder="Create a new password"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            isPassword
+          />
+
+          <View style={styles.spacerSm} />
+
+          <Text style={styles.label}>Confirm New Password</Text>
+          <AuthInput
+            icon="lock-closed-outline"
+            placeholder="Confirm your new password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             isPassword
@@ -123,21 +103,12 @@ export default function StudentSignUpScreen({
           </View>
 
           <TouchableOpacity
-            style={styles.createButton}
-            onPress={() =>
-              onCreateAccount?.({ fullName, studentId, email, password, confirmPassword })
-            }
+            style={styles.saveButton}
+            onPress={() => onSave?.({ currentPassword, newPassword, confirmPassword })}
             activeOpacity={0.85}
           >
-            <Text style={styles.createButtonText}>Create Account</Text>
+            <Text style={styles.saveButtonText}>Save New Password</Text>
           </TouchableOpacity>
-
-          <View style={styles.loginRow}>
-            <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={onLogin}>
-              <Text style={styles.link}>Log in</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -147,34 +118,45 @@ export default function StudentSignUpScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  headerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textDark,
+  },
+  headerSpacer: {
+    width: 22,
   },
   flex: {
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-start',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
+    paddingBottom: spacing.xl,
   },
-  backButton: {
-    marginBottom: spacing.md,
-  },
-  avatarWrap: {
+  iconWrap: {
     alignItems: 'center',
+    marginTop: spacing.md,
     marginBottom: spacing.md,
   },
-  avatarCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   heading: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.textDark,
     textAlign: 'center',
@@ -185,6 +167,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   label: {
     fontSize: 12,
@@ -214,30 +197,16 @@ const styles = StyleSheet.create({
     color: colors.infoText,
     lineHeight: 17,
   },
-  createButton: {
+  saveButton: {
     backgroundColor: colors.primary,
     borderRadius: 10,
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
   },
-  createButtonText: {
+  saveButtonText: {
     color: colors.white,
     fontWeight: '700',
     fontSize: 15,
-  },
-  loginRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  loginText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  link: {
-    fontSize: 12,
-    color: colors.link,
-    fontWeight: '700',
   },
 });
