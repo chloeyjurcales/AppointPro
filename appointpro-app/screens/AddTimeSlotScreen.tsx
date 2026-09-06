@@ -6,29 +6,31 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import FacultyBottomTabBar, { FacultyTabKey } from '../components/FacultyBottomTabBar';
+import { ConsultationMode } from '../data/facultySlots';
 
 type Period = 'AM' | 'PM';
-type ConsultationType = 'face-to-face' | 'online' | 'both';
 
-type NewTimeSlot = {
+export type NewFacultySlotInput = {
   startHour: string;
   startMinute: string;
   startPeriod: Period;
   endHour: string;
   endMinute: string;
   endPeriod: Period;
-  consultationType: ConsultationType;
+  mode: ConsultationMode;
   location: string;
+  recurring: boolean;
 };
 
 type AddTimeSlotScreenProps = {
   onBack?: () => void;
-  onConfirm?: (slot: NewTimeSlot) => void;
+  onConfirm?: (slot: NewFacultySlotInput) => void;
   onTabChange?: (tab: FacultyTabKey) => void;
 };
 
@@ -43,10 +45,11 @@ export default function AddTimeSlotScreen({
   const [endHour, setEndHour] = useState('12');
   const [endMinute, setEndMinute] = useState('30');
   const [endPeriod, setEndPeriod] = useState<Period>('PM');
-  const [consultationType, setConsultationType] = useState<ConsultationType>('face-to-face');
+  const [mode, setMode] = useState<ConsultationMode>('Face-to-Face');
   const [location, setLocation] = useState('');
+  const [recurring, setRecurring] = useState(true);
 
-  const isOnline = consultationType === 'online';
+  const isOnline = mode === 'Online';
 
   const handleConfirm = () => {
     onConfirm?.({
@@ -56,8 +59,9 @@ export default function AddTimeSlotScreen({
       endHour,
       endMinute,
       endPeriod,
-      consultationType,
+      mode,
       location,
+      recurring,
     });
   };
 
@@ -172,17 +176,16 @@ export default function AddTimeSlotScreen({
           <View style={styles.typeRow}>
             {(
               [
-                { key: 'face-to-face', label: 'Face-to-Face' },
-                { key: 'online', label: 'Online' },
-                { key: 'both', label: 'Both' },
-              ] as { key: ConsultationType; label: string }[]
+                { key: 'Face-to-Face', label: 'Face-to-Face' },
+                { key: 'Online', label: 'Online' },
+              ] as { key: ConsultationMode; label: string }[]
             ).map((opt) => {
-              const isActive = consultationType === opt.key;
+              const isActive = mode === opt.key;
               return (
                 <TouchableOpacity
                   key={opt.key}
                   style={styles.typeOption}
-                  onPress={() => setConsultationType(opt.key)}
+                  onPress={() => setMode(opt.key)}
                   activeOpacity={0.7}
                 >
                   <View style={[styles.radioOuter, isActive && styles.radioOuterActive]}>
@@ -218,6 +221,21 @@ export default function AddTimeSlotScreen({
                 autoCapitalize="none"
               />
             </View>
+          </View>
+
+          <View style={styles.recurringRow}>
+            <View style={styles.recurringTextWrap}>
+              <Text style={styles.fieldLabel}>Repeat Weekly</Text>
+              <Text style={styles.recurringHint}>
+                This slot will automatically repeat every week for the semester.
+              </Text>
+            </View>
+            <Switch
+              value={recurring}
+              onValueChange={setRecurring}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.white}
+            />
           </View>
         </View>
 
@@ -315,7 +333,8 @@ const styles = StyleSheet.create({
   },
   typeRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    gap: spacing.xl,
     marginBottom: spacing.lg,
   },
   typeOption: {
@@ -346,7 +365,7 @@ const styles = StyleSheet.create({
     color: colors.textDark,
   },
   locationBlock: {
-    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
   },
   locationInputRow: {
     flexDirection: 'row',
@@ -364,6 +383,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     color: colors.textDark,
+  },
+  recurringRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  recurringTextWrap: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  recurringHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   confirmButton: {
     backgroundColor: colors.primary,

@@ -19,6 +19,7 @@ type BookingConfirmationScreenProps = {
   department?: string;
   date?: string;
   time?: string;
+  duration?: string;
   consultationCategory?: string;
   location?: string;
   mode?: string;
@@ -34,6 +35,7 @@ export default function BookingConfirmationScreen({
   department = 'Computer Studies',
   date = 'May 13, 2026 (Tue)',
   time = '10:00 AM',
+  duration = '30 mins',
   consultationCategory = 'Academic Advising',
   location = 'Room 305, CHMC Main Campus',
   mode = 'Face-to-Face',
@@ -82,6 +84,10 @@ export default function BookingConfirmationScreen({
           <View style={styles.detailRow}>
             <Ionicons name="time-outline" size={16} color={colors.primary} style={styles.detailIcon} />
             <Text style={styles.detailText}>{time}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="hourglass-outline" size={16} color={colors.primary} style={styles.detailIcon} />
+            <Text style={styles.detailText}>{duration}</Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="school-outline" size={16} color={colors.primary} style={styles.detailIcon} />

@@ -20,6 +20,8 @@ type StudentSignUpScreenProps = {
     fullName: string;
     studentId: string;
     email: string;
+    department: string;
+    yearLevel: string;
     password: string;
     confirmPassword: string;
   }) => void;
@@ -33,6 +35,8 @@ export default function StudentSignUpScreen({
   const [fullName, setFullName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [email, setEmail] = useState('');
+  const [department, setDepartment] = useState('');
+  const [yearLevel, setYearLevel] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -90,6 +94,25 @@ export default function StudentSignUpScreen({
 
           <View style={styles.spacerSm} />
 
+          <Text style={styles.label}>Department</Text>
+          <AuthInput
+            placeholder="Enter your department"
+            value={department}
+            onChangeText={setDepartment}
+            autoCapitalize="words"
+          />
+
+          <View style={styles.spacerSm} />
+
+          <Text style={styles.label}>Year Level</Text>
+          <AuthInput
+            placeholder="e.g. 3rd Year"
+            value={yearLevel}
+            onChangeText={setYearLevel}
+          />
+
+          <View style={styles.spacerSm} />
+
           <Text style={styles.label}>Password</Text>
           <AuthInput
             icon="lock-closed-outline"
@@ -125,7 +148,15 @@ export default function StudentSignUpScreen({
           <TouchableOpacity
             style={styles.createButton}
             onPress={() =>
-              onCreateAccount?.({ fullName, studentId, email, password, confirmPassword })
+              onCreateAccount?.({
+                fullName,
+                studentId,
+                email,
+                department,
+                yearLevel,
+                password,
+                confirmPassword,
+              })
             }
             activeOpacity={0.85}
           >

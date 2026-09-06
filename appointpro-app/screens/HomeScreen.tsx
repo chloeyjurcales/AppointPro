@@ -45,6 +45,10 @@ const notifications: NotificationItem[] = [
 
 type HomeScreenProps = {
   userName?: string;
+  hasPendingReschedule?: boolean;
+  cancelledNotice?: string | null;
+  onDismissCancelledNotice?: () => void;
+  onReviewReschedule?: () => void;
   onMenuPress?: () => void;
   onNotificationsPress?: () => void;
   onViewAppointments?: () => void;
@@ -56,6 +60,10 @@ type HomeScreenProps = {
 
 export default function HomeScreen({
   userName = 'NovaGPNustrative',
+  hasPendingReschedule = false,
+  cancelledNotice = null,
+  onDismissCancelledNotice,
+  onReviewReschedule,
   onMenuPress,
   onNotificationsPress,
   onViewAppointments,
@@ -81,6 +89,26 @@ export default function HomeScreen({
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {hasPendingReschedule && (
+          <TouchableOpacity style={styles.rescheduleBanner} onPress={onReviewReschedule} activeOpacity={0.8}>
+            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+            <Text style={styles.rescheduleBannerText}>
+              Your faculty proposed a new schedule. Tap to review.
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+          </TouchableOpacity>
+        )}
+
+        {cancelledNotice && (
+          <View style={styles.cancelledBanner}>
+            <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
+            <Text style={styles.cancelledBannerText}>{cancelledNotice}</Text>
+            <TouchableOpacity onPress={onDismissCancelledNotice}>
+              <Ionicons name="close" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Upcoming Appointment</Text>
           <TouchableOpacity onPress={onViewAppointments}>
@@ -209,6 +237,37 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+  },
+  rescheduleBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.infoBg,
+    borderRadius: 10,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  rescheduleBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.infoText,
+    fontWeight: '600',
+  },
+  cancelledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: 10,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  cancelledBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.danger,
+    fontWeight: '600',
   },
   sectionHeaderRow: {
     flexDirection: 'row',

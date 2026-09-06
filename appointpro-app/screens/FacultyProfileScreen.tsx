@@ -10,30 +10,41 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';
-import { WEEK_DAYS, SCHEDULE_BY_DATE, ScheduleSlot } from '../data/facultySchedule';
+import {
+  WEEK_DAYS,
+  ScheduleSlot,
+  getRemainingMinutes,
+  isSlotFull,
+} from '../data/facultySchedule';
 
 type FacultyProfileScreenProps = {
+  scheduleByDate: Record<number, ScheduleSlot[]>;
   onBack?: () => void;
   onMorePress?: () => void;
   onSelectSlot?: (date: number, slot: ScheduleSlot) => void;
   onContinue?: () => void;
+  onJoinWalkInQueue?: () => void;
   onTabChange?: (tab: TabKey) => void;
 };
 
 export default function FacultyProfileScreen({
+  scheduleByDate,
   onBack,
   onMorePress,
   onSelectSlot,
   onContinue,
+  onJoinWalkInQueue,
   onTabChange,
 }: FacultyProfileScreenProps) {
   const firstAvailableDate =
-    WEEK_DAYS.find((d) => SCHEDULE_BY_DATE[d.date]?.some((s) => s.available))?.date ??
-    WEEK_DAYS[0].date;
+    WEEK_DAYS.find((d) =>
+      (scheduleByDate[d.date] ?? []).some((s) => !isSlotFull(s))
+    )?.date ?? WEEK_DAYS[0].date;
   const [selectedDate, setSelectedDate] = useState(firstAvailableDate);
 
-  const slotsForDate = SCHEDULE_BY_DATE[selectedDate] ?? [];
+  const slotsForDate = scheduleByDate[selectedDate] ?? [];
   const selectedDay = WEEK_DAYS.find((d) => d.date === selectedDate);
+  const isFullyBookedToday = slotsForDate.length > 0 && slotsForDate.every((s) => isSlotFull(s));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -87,7 +98,7 @@ export default function FacultyProfileScreen({
         <View style={styles.dateRow}>
           {WEEK_DAYS.map((d) => {
             const isActive = d.date === selectedDate;
-            const hasAvailable = (SCHEDULE_BY_DATE[d.date] ?? []).some((s) => s.available);
+            const hasAvailable = (scheduleByDate[d.date] ?? []).some((s) => !isSlotFull(s));
             return (
               <TouchableOpacity
                 key={d.date}
@@ -113,48 +124,71 @@ export default function FacultyProfileScreen({
 
         <Text style={styles.selectedDayLabel}>{selectedDay?.fullLabel}</Text>
 
+        {isFullyBookedToday && (
+          <View style={styles.queueBanner}>
+            <Ionicons name="alert-circle-outline" size={18} color={colors.primary} />
+            <Text style={styles.queueBannerText}>
+              Dr. Juan Dela Cruz is fully booked for this day.
+            </Text>
+            <TouchableOpacity style={styles.queueBannerButton} onPress={onJoinWalkInQueue}>
+              <Text style={styles.queueBannerButtonText}>Join Walk-in Queue</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {slotsForDate.length === 0 ? (
           <View style={styles.emptySchedule}>
             <Ionicons name="calendar-outline" size={22} color={colors.textMuted} />
             <Text style={styles.emptyScheduleText}>No slots offered this day.</Text>
           </View>
         ) : (
-          slotsForDate.map((slot) => (
-            <TouchableOpacity
-              key={slot.id}
-              style={[styles.slotCard, !slot.available && styles.slotCardDisabled]}
-              onPress={() => slot.available && onSelectSlot?.(selectedDate, slot)}
-              activeOpacity={slot.available ? 0.75 : 1}
-              disabled={!slot.available}
-            >
-              <View style={styles.slotIconWrap}>
-                <Ionicons
-                  name={slot.mode === 'Online' ? 'wifi-outline' : 'location-outline'}
-                  size={16}
-                  color={slot.available ? colors.primary : colors.textMuted}
-                />
-              </View>
-              <View style={styles.slotTextWrap}>
-                <Text style={[styles.slotTime, !slot.available && styles.slotTextDisabled]}>
-                  {slot.time}
-                </Text>
-                <Text style={[styles.slotLocation, !slot.available && styles.slotTextDisabled]}>
-                  {slot.location}
-                </Text>
-              </View>
-              <Text
-                style={[
-                  styles.slotStatus,
-                  slot.available ? styles.slotStatusAvailable : styles.slotStatusBooked,
-                ]}
+          slotsForDate.map((slot) => {
+            const full = isSlotFull(slot);
+            const remaining = getRemainingMinutes(slot);
+            return (
+              <TouchableOpacity
+                key={slot.id}
+                style={[styles.slotCard, full && styles.slotCardDisabled]}
+                onPress={() => !full && onSelectSlot?.(selectedDate, slot)}
+                activeOpacity={full ? 1 : 0.75}
+                disabled={full}
               >
-                {slot.available ? 'Available' : 'Booked'}
-              </Text>
-              {slot.available && (
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={styles.slotChevron} />
-              )}
-            </TouchableOpacity>
-          ))
+                <View style={styles.slotIconWrap}>
+                  <Ionicons
+                    name={slot.mode === 'Online' ? 'wifi-outline' : 'location-outline'}
+                    size={16}
+                    color={full ? colors.textMuted : colors.primary}
+                  />
+                </View>
+                <View style={styles.slotTextWrap}>
+                  <Text style={[styles.slotTime, full && styles.slotTextDisabled]}>
+                    {slot.time}
+                  </Text>
+                  <Text style={[styles.slotLocation, full && styles.slotTextDisabled]}>
+                    {slot.location}
+                  </Text>
+                </View>
+                <View style={styles.slotStatusWrap}>
+                  <Text
+                    style={[
+                      styles.slotStatus,
+                      full ? styles.slotStatusBooked : styles.slotStatusAvailable,
+                    ]}
+                  >
+                    {full ? 'Fully Booked' : `${remaining} min left`}
+                  </Text>
+                  {!full && (
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color={colors.textMuted}
+                      style={styles.slotChevron}
+                    />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
 
@@ -308,6 +342,33 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing.md,
   },
+  queueBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    backgroundColor: colors.infoBg,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  queueBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.infoText,
+    minWidth: 140,
+  },
+  queueBannerButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  queueBannerButtonText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   emptySchedule: {
     alignItems: 'center',
     borderWidth: 1,
@@ -358,6 +419,10 @@ const styles = StyleSheet.create({
   },
   slotTextDisabled: {
     color: colors.textMuted,
+  },
+  slotStatusWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   slotStatus: {
     fontSize: 10,

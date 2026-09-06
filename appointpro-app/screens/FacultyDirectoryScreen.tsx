@@ -82,11 +82,15 @@ const TABS: { key: AppointmentStatus; label: string }[] = [
 
 type FacultyDirectoryScreenProps = {
   onSelectAppointment?: (appointment: StudentAppointment) => void;
+  onReschedulePress?: (appointment: StudentAppointment) => void;
+  onCancelPress?: (appointment: StudentAppointment) => void;
   onTabChange?: (tab: FacultyTabKey) => void;
 };
 
 export default function FacultyDirectoryScreen({
   onSelectAppointment,
+  onReschedulePress,
+  onCancelPress,
   onTabChange,
 }: FacultyDirectoryScreenProps) {
   const [activeFilter, setActiveFilter] = useState<AppointmentStatus>('upcoming');
@@ -127,31 +131,50 @@ export default function FacultyDirectoryScreen({
             onPress={() => onSelectAppointment?.(item)}
             activeOpacity={0.8}
           >
-            <View style={styles.avatarWrap}>
-              {item.photoUri ? (
-                <Image source={{ uri: item.photoUri }} style={styles.avatarImage} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Feather name="user" size={20} color={colors.white} />
-                </View>
-              )}
-              {item.isOnline && <View style={styles.onlineDot} />}
+            <View style={styles.cardTopRow}>
+              <View style={styles.avatarWrap}>
+                {item.photoUri ? (
+                  <Image source={{ uri: item.photoUri }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Feather name="user" size={20} color={colors.white} />
+                  </View>
+                )}
+                {item.isOnline && <View style={styles.onlineDot} />}
+              </View>
+
+              <View style={styles.infoWrap}>
+                <Text style={styles.name}>{item.studentName}</Text>
+                <Text style={styles.detailText}>
+                  {item.date}, {item.time}
+                </Text>
+                <Text style={styles.detailText}>{item.category}</Text>
+                <Text style={styles.detailText}>
+                  {item.mode === 'online'
+                    ? 'Online'
+                    : item.room
+                    ? `${item.room} · Face-to-Face`
+                    : 'Face-to-Face'}
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.infoWrap}>
-              <Text style={styles.name}>{item.studentName}</Text>
-              <Text style={styles.detailText}>
-                {item.date}, {item.time}
-              </Text>
-              <Text style={styles.detailText}>{item.category}</Text>
-              <Text style={styles.detailText}>
-                {item.mode === 'online'
-                  ? 'Online'
-                  : item.room
-                  ? `${item.room} · Face-to-Face`
-                  : 'Face-to-Face'}
-              </Text>
-            </View>
+            {activeFilter === 'upcoming' && (
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => onReschedulePress?.(item)}
+                >
+                  <Text style={styles.actionButtonText}>Reschedule</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.actionButtonDanger]}
+                  onPress={() => onCancelPress?.(item)}
+                >
+                  <Text style={styles.actionButtonDangerText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </TouchableOpacity>
         )}
         ListEmptyComponent={
@@ -211,13 +234,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   card: {
-    flexDirection: 'row',
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.md,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
   },
   avatarWrap: {
     marginRight: spacing.md,
@@ -259,6 +284,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 1,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  actionButtonDanger: {
+    borderColor: colors.danger,
+  },
+  actionButtonDangerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.danger,
   },
   emptyText: {
     textAlign: 'center',
