@@ -16,7 +16,7 @@ import { colors, spacing } from '../theme';
 type FacultyCancelAppointmentScreenProps = {
   studentName?: string;
   dateLabel?: string;
-  time?: string;
+  bookedTimeRangeLabel?: string;
   location?: string;
   mode?: string;
   onBack?: () => void;
@@ -26,7 +26,7 @@ type FacultyCancelAppointmentScreenProps = {
 export default function FacultyCancelAppointmentScreen({
   studentName = 'Chloey Lyca Jurcales',
   dateLabel = 'May 13, 2026 (Tue)',
-  time = '10:00 AM',
+  bookedTimeRangeLabel = '10:00 AM - 10:30 AM',
   location = 'Room 305, CHMC Main Campus',
   mode = 'Face-to-Face',
   onBack,
@@ -52,7 +52,7 @@ export default function FacultyCancelAppointmentScreen({
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>
             <Text style={styles.cardName}>{studentName}</Text>
-            <Text style={styles.cardText}>{dateLabel} · {time}</Text>
+            <Text style={styles.cardText}>{dateLabel} · {bookedTimeRangeLabel}</Text>
             <Text style={styles.cardTextMuted}>{location}</Text>
             <Text style={styles.cardTextMuted}>{mode}</Text>
           </View>

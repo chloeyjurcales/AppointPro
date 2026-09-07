@@ -28,6 +28,7 @@ import WalkInQueueScreen from './screens/WalkInQueueScreen';
 import FacultyRescheduleAppointmentScreen from './screens/FacultyRescheduleAppointmentScreen';
 import RescheduleProposalScreen from './screens/RescheduleProposalScreen';
 import FacultyCancelAppointmentScreen from './screens/FacultyCancelAppointmentScreen';
+import RecurringScheduleScreen from './screens/RecurringScheduleScreen';
 import { TabKey } from './components/BottomTabBar';
 import { FacultyTabKey } from './components/FacultyBottomTabBar';
 import {
@@ -35,8 +36,14 @@ import {
   INITIAL_SCHEDULE_BY_DATE,
   bookMinutes,
   releaseMinutes,
+  getBookedTimeRangeLabel,
 } from './data/facultySchedule';
-import { FacultySlot, INITIAL_FACULTY_SLOTS_BY_DATE } from './data/facultySlots';
+import {
+  FacultySlot,
+  INITIAL_FACULTY_SLOTS_BY_DATE,
+  toDateKey,
+} from './data/facultySlots';
+import { RecurringRule, generateSlotsFromRule } from './data/recurringSchedule';
 import { QueueEntry, INITIAL_QUEUE } from './data/queue';
 
 type Screen =
@@ -66,7 +73,8 @@ type Screen =
   | 'walkInQueue'
   | 'facultyRescheduleAppointment'
   | 'rescheduleProposal'
-  | 'facultyCancelAppointment';
+  | 'facultyCancelAppointment'
+  | 'recurringSchedule';
 
 type PendingReschedule = {
   reason: string;
@@ -80,18 +88,19 @@ type PendingReschedule = {
   proposedMode: string;
 };
 
+const CURRENT_STUDENT_NAME = 'Chloey Lyca Jurcales';
+
 function AppContent() {
   const [screen, setScreen] = useState<Screen>('login');
   const [previousScreen, setPreviousScreen] = useState<Screen>('profile');
 
-  // Booking-capacity store (shared by student booking + faculty reschedule/cancel)
   const [scheduleByDate, setScheduleByDate] =
     useState<Record<number, ScheduleSlot[]>>(INITIAL_SCHEDULE_BY_DATE);
 
-  // Faculty's own editable availability list (separate from booking capacity above)
   const [facultySlotsByDate, setFacultySlotsByDate] =
-    useState<Record<number, FacultySlot[]>>(INITIAL_FACULTY_SLOTS_BY_DATE);
-  const [addSlotForDate, setAddSlotForDate] = useState<number>(12);
+    useState<Record<string, FacultySlot[]>>(INITIAL_FACULTY_SLOTS_BY_DATE);
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
+  const [addSlotForDate, setAddSlotForDate] = useState<string>(toDateKey(new Date()));
 
   const [bookingPreselect, setBookingPreselect] = useState<{
     date?: number;
@@ -102,7 +111,6 @@ function AppContent() {
   const [pendingReschedule, setPendingReschedule] = useState<PendingReschedule | null>(null);
   const [cancelledNotice, setCancelledNotice] = useState<string | null>(null);
 
-  // Walk-in queue (demo: single shared queue)
   const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE);
   const [currentStudentQueueId, setCurrentStudentQueueId] = useState<string | null>(null);
 
@@ -168,23 +176,24 @@ function AppContent() {
     setScreen('about');
   };
 
-  // --- Faculty availability editing handlers ---
-  const handleToggleFacultySlot = (date: number, slotId: string) => {
+  const handleToggleFacultySlot = (dateKey: string, slotId: string) => {
     setFacultySlotsByDate((prev) => ({
       ...prev,
-      [date]: prev[date].map((s) => (s.id === slotId ? { ...s, enabled: !s.enabled } : s)),
+      [dateKey]: (prev[dateKey] ?? []).map((s) =>
+        s.id === slotId ? { ...s, enabled: !s.enabled } : s
+      ),
     }));
   };
 
-  const handleDeleteFacultySlot = (date: number, slotId: string) => {
+  const handleDeleteFacultySlot = (dateKey: string, slotId: string) => {
     setFacultySlotsByDate((prev) => ({
       ...prev,
-      [date]: prev[date].filter((s) => s.id !== slotId),
+      [dateKey]: (prev[dateKey] ?? []).filter((s) => s.id !== slotId),
     }));
   };
 
-  const handleAddTimeSlot = (date: number) => {
-    setAddSlotForDate(date);
+  const handleAddTimeSlot = (dateKey: string) => {
+    setAddSlotForDate(dateKey);
     setScreen('addTimeSlot');
   };
 
@@ -205,7 +214,30 @@ function AppContent() {
     setScreen('facultyAvailability');
   };
 
-  // --- Walk-in queue handlers ---
+  const handleCreateRecurringRule = (rule: RecurringRule) => {
+    const generated = generateSlotsFromRule(rule);
+    setFacultySlotsByDate((prev) => {
+      const merged = { ...prev };
+      Object.entries(generated).forEach(([dateKey, slots]) => {
+        merged[dateKey] = [...(merged[dateKey] ?? []), ...slots];
+      });
+      return merged;
+    });
+    setRecurringRules((prev) => [...prev, rule]);
+    setScreen('facultyAvailability');
+  };
+
+  const handleDeleteRecurringRule = (ruleId: string) => {
+    setRecurringRules((prev) => prev.filter((r) => r.id !== ruleId));
+    setFacultySlotsByDate((prev) => {
+      const updated: Record<string, FacultySlot[]> = {};
+      Object.entries(prev).forEach(([dateKey, slots]) => {
+        updated[dateKey] = slots.filter((s) => s.ruleId !== ruleId);
+      });
+      return updated;
+    });
+  };
+
   const handleJoinQueue = () => {
     const newEntry: QueueEntry = { id: `q-${Date.now()}`, studentName: 'You' };
     setQueue((prev) => [...prev, newEntry]);
@@ -217,24 +249,20 @@ function AppContent() {
     setCurrentStudentQueueId(null);
   };
 
-  // --- Cancellation (student self-cancel and faculty cancel both flow through here) ---
   const releaseCurrentBooking = () => {
     if (!confirmedBooking) return;
     setScheduleByDate((prev) =>
-      releaseMinutes(prev, confirmedBooking.date, confirmedBooking.slot.id, confirmedBooking.durationMinutes)
+      releaseMinutes(prev, confirmedBooking.date, confirmedBooking.slot.id, confirmedBooking.bookingId)
     );
   };
 
   const handleFacultyCancel = (reason: string) => {
     releaseCurrentBooking();
-    setCancelledNotice(
-      `Your appointment was cancelled by the faculty. Reason: ${reason}`
-    );
+    setCancelledNotice(`Your appointment was cancelled by the faculty. Reason: ${reason}`);
     setConfirmedBooking(null);
     setScreen('facultyDirectory');
   };
 
-  // --- Faculty-initiated reschedule ---
   const handleFacultyReschedule = (data: {
     date: number;
     dateLabel: string;
@@ -244,24 +272,38 @@ function AppContent() {
   }) => {
     if (!confirmedBooking) return;
 
-    // release the old slot, provisionally book the new one
     let updated = releaseMinutes(
       scheduleByDate,
       confirmedBooking.date,
       confirmedBooking.slot.id,
-      confirmedBooking.durationMinutes
+      confirmedBooking.bookingId
     );
-    updated = bookMinutes(updated, data.date, data.slot.id, data.durationMinutes);
-    setScheduleByDate(updated);
+
+    const { scheduleByDate: afterBooking, startOffset } = bookMinutes(
+      updated,
+      data.date,
+      data.slot.id,
+      data.durationMinutes,
+      CURRENT_STUDENT_NAME
+    );
+    setScheduleByDate(afterBooking);
+
+    if (startOffset === null) return;
+
+    const newSlot = (afterBooking[data.date] ?? []).find((s) => s.id === data.slot.id);
+    const newBooking = newSlot?.bookings[newSlot.bookings.length - 1];
+    const bookedTimeRangeLabel = newSlot
+      ? getBookedTimeRangeLabel(newSlot, startOffset, data.durationMinutes)
+      : data.slot.time;
 
     setPendingReschedule({
       reason: data.reason,
       originalDateLabel: confirmedBooking.dateLabel,
-      originalTime: confirmedBooking.slot.time,
+      originalTime: confirmedBooking.bookedTimeRangeLabel,
       originalLocation: confirmedBooking.slot.location,
       originalMode: confirmedBooking.slot.mode,
       proposedDateLabel: data.dateLabel,
-      proposedTime: data.slot.time,
+      proposedTime: bookedTimeRangeLabel,
       proposedLocation: data.slot.location,
       proposedMode: data.slot.mode,
     });
@@ -269,9 +311,12 @@ function AppContent() {
     setConfirmedBooking({
       date: data.date,
       dateLabel: data.dateLabel,
-      slot: data.slot,
+      slot: newSlot ?? data.slot,
       duration: confirmedBooking.duration,
       durationMinutes: data.durationMinutes,
+      purpose: confirmedBooking.purpose,
+      bookingId: newBooking?.bookingId ?? '',
+      bookedTimeRangeLabel,
     });
 
     setScreen('facultyDirectory');
@@ -283,11 +328,9 @@ function AppContent() {
   };
 
   const handleRejectReschedule = () => {
-    // release the proposed slot's minutes since the student is rejecting it,
-    // then let them pick a fresh slot through the normal booking flow
     if (confirmedBooking) {
       setScheduleByDate((prev) =>
-        releaseMinutes(prev, confirmedBooking.date, confirmedBooking.slot.id, confirmedBooking.durationMinutes)
+        releaseMinutes(prev, confirmedBooking.date, confirmedBooking.slot.id, confirmedBooking.bookingId)
       );
     }
     setPendingReschedule(null);
@@ -402,15 +445,37 @@ function AppContent() {
         {screen === 'bookAppointment' && (
           <BookAppointmentScreen
             scheduleByDate={scheduleByDate}
+            studentName={CURRENT_STUDENT_NAME}
             mode="book"
             initialDate={bookingPreselect?.date}
             initialSlotId={bookingPreselect?.slotId}
             onBack={() => setScreen(isChoosingAfterReject ? 'home' : 'facultyProfile')}
             onContinue={(selection) => {
-              setScheduleByDate((prev) =>
-                bookMinutes(prev, selection.date, selection.slot.id, selection.durationMinutes)
+              const { scheduleByDate: updated, startOffset } = bookMinutes(
+                scheduleByDate,
+                selection.date,
+                selection.slot.id,
+                selection.durationMinutes,
+                CURRENT_STUDENT_NAME
               );
-              setConfirmedBooking(selection);
+              if (startOffset === null) return;
+
+              setScheduleByDate(updated);
+
+              const bookedSlot = (updated[selection.date] ?? []).find(
+                (s) => s.id === selection.slot.id
+              );
+              const newBooking = bookedSlot?.bookings[bookedSlot.bookings.length - 1];
+              const bookedTimeRangeLabel = bookedSlot
+                ? getBookedTimeRangeLabel(bookedSlot, startOffset, selection.durationMinutes)
+                : selection.slot.time;
+
+              setConfirmedBooking({
+                ...selection,
+                slot: bookedSlot ?? selection.slot,
+                bookingId: newBooking?.bookingId ?? '',
+                bookedTimeRangeLabel,
+              });
               setIsChoosingAfterReject(false);
               setScreen('bookingConfirmation');
             }}
@@ -420,6 +485,7 @@ function AppContent() {
         {screen === 'rescheduleAppointment' && (
           <BookAppointmentScreen
             scheduleByDate={scheduleByDate}
+            studentName={CURRENT_STUDENT_NAME}
             mode="reschedule"
             onBack={() => setScreen('appointmentDetails')}
             onContinue={(selection) => {
@@ -439,8 +505,9 @@ function AppContent() {
             }}
             onBackToHome={() => setScreen('home')}
             date={confirmedBooking?.dateLabel}
-            time={confirmedBooking?.slot.time}
+            bookedTimeRangeLabel={confirmedBooking?.bookedTimeRangeLabel}
             duration={confirmedBooking?.duration}
+            purpose={confirmedBooking?.purpose}
             location={confirmedBooking?.slot.location}
             mode={confirmedBooking?.slot.mode}
           />
@@ -524,11 +591,14 @@ function AppContent() {
         {screen === 'facultyAvailability' && (
           <FacultyAvailabilityScreen
             slotsByDate={facultySlotsByDate}
+            recurringRules={recurringRules}
             onBack={() => setScreen('facultyHome')}
             onInfoPress={() => console.log('Open availability info')}
             onAddTimeSlot={handleAddTimeSlot}
             onToggleSlot={handleToggleFacultySlot}
             onDeleteTimeSlot={handleDeleteFacultySlot}
+            onSetRecurringSchedule={() => setScreen('recurringSchedule')}
+            onDeleteRecurringRule={handleDeleteRecurringRule}
             onSaveAvailability={() => {
               console.log('Save availability:', facultySlotsByDate);
               setScreen('facultyHome');
@@ -542,6 +612,13 @@ function AppContent() {
             onBack={() => setScreen('facultyAvailability')}
             onConfirm={handleConfirmNewFacultySlot}
             onTabChange={handleFacultyTabChange}
+          />
+        )}
+
+        {screen === 'recurringSchedule' && (
+          <RecurringScheduleScreen
+            onBack={() => setScreen('facultyAvailability')}
+            onConfirm={handleCreateRecurringRule}
           />
         )}
 
@@ -592,8 +669,9 @@ function AppContent() {
         {screen === 'facultyRescheduleAppointment' && (
           <FacultyRescheduleAppointmentScreen
             scheduleByDate={scheduleByDate}
+            purpose={confirmedBooking?.purpose}
             originalDateLabel={confirmedBooking?.dateLabel}
-            originalTime={confirmedBooking?.slot.time}
+            originalTime={confirmedBooking?.bookedTimeRangeLabel}
             originalLocation={confirmedBooking?.slot.location}
             originalMode={confirmedBooking?.slot.mode}
             durationMinutes={confirmedBooking?.durationMinutes ?? 30}
@@ -621,7 +699,7 @@ function AppContent() {
         {screen === 'facultyCancelAppointment' && (
           <FacultyCancelAppointmentScreen
             dateLabel={confirmedBooking?.dateLabel}
-            time={confirmedBooking?.slot.time}
+            bookedTimeRangeLabel={confirmedBooking?.bookedTimeRangeLabel}
             location={confirmedBooking?.slot.location}
             mode={confirmedBooking?.slot.mode}
             onBack={() => setScreen('facultyDirectory')}

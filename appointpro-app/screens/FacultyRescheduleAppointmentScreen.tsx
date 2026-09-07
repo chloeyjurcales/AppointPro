@@ -23,6 +23,7 @@ type FacultyRescheduleAppointmentScreenProps = {
   scheduleByDate: Record<number, ScheduleSlot[]>;
   studentName?: string;
   category?: string;
+  purpose?: string;
   originalDateLabel?: string;
   originalTime?: string;
   originalLocation?: string;
@@ -42,6 +43,7 @@ export default function FacultyRescheduleAppointmentScreen({
   scheduleByDate,
   studentName = 'Chloey Lyca Jurcales',
   category = 'Academic Advising',
+  purpose = '',
   originalDateLabel = 'May 13, 2026 (Tue)',
   originalTime = '10:00 AM',
   originalLocation = 'Room 305, CHMC Main Campus',
@@ -111,6 +113,13 @@ export default function FacultyRescheduleAppointmentScreen({
             <Text style={styles.currentText}>{originalDateLabel} · {originalTime}</Text>
             <Text style={styles.currentTextMuted}>{originalLocation}</Text>
             <Text style={styles.currentTextMuted}>{originalMode}</Text>
+            {purpose.length > 0 && (
+              <>
+                <View style={styles.purposeDivider} />
+                <Text style={styles.purposeLabel}>Purpose</Text>
+                <Text style={styles.purposeText}>{purpose}</Text>
+              </>
+            )}
           </View>
 
           <Text style={styles.sectionTitle}>Reason for Reschedule</Text>
@@ -268,6 +277,13 @@ const styles = StyleSheet.create({
   },
   currentText: { fontSize: 13, fontWeight: '700', color: colors.textDark, marginBottom: 2 },
   currentTextMuted: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
+  purposeDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
+  },
+  purposeLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, marginBottom: 2 },
+  purposeText: { fontSize: 12, color: colors.textDark, lineHeight: 17 },
   reasonInput: {
     borderWidth: 1,
     borderColor: colors.border,

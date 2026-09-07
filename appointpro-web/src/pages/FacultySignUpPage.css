@@ -1,0 +1,382 @@
+/*
+  Colors reference appointpro-app/theme.ts so the palette matches the
+  mobile app, but the layout here is a true full-viewport desktop split
+  panel — fixed to the viewport (so it fills 100% of the browser
+  regardless of any width limit set elsewhere in the app's global CSS)
+  and sized with clamp() so everything fits on screen without scrolling.
+    primary   #7A0E2C   primaryDark #5C0A21
+    textDark  #1A1A1A   textMuted   #6B7280
+    border    #E5E7EB   inputBg     #EAEAEC
+    link      #B3153A   infoBg      #E9C7CE / infoText #5C0A21
+    danger    #D93025
+*/
+
+* {
+  box-sizing: border-box;
+}
+
+.fsu-page {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(300px, 38%) 1fr;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  background: #ffffff;
+}
+
+/* ---------- Left brand panel ---------- */
+
+.fsu-panel {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: clamp(24px, 5vh, 64px) clamp(28px, 4vw, 56px);
+  background: linear-gradient(155deg, #7a0e2c 0%, #5c0a21 100%);
+  color: #ffffff;
+}
+
+.fsu-panel-content {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+}
+
+.fsu-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: clamp(24px, 6vh, 56px);
+}
+
+.fsu-brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.fsu-brand-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.fsu-panel-heading {
+  margin: 0 0 clamp(10px, 2vh, 16px);
+  font-size: clamp(24px, 3.4vw, 34px);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.fsu-panel-text {
+  margin: 0 0 clamp(20px, 4vh, 40px);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 360px;
+}
+
+.fsu-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 2vh, 18px);
+}
+
+.fsu-panel-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.fsu-panel-list svg {
+  flex-shrink: 0;
+}
+
+.fsu-panel-glow {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  bottom: -180px;
+  right: -160px;
+  pointer-events: none;
+}
+
+/* ---------- Right form panel ---------- */
+
+.fsu-form-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.fsu-form-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding: clamp(14px, 3vh, 24px) clamp(24px, 4vw, 64px) 0;
+}
+
+.fsu-topbar-login {
+  font-size: 13px;
+  color: #6b7280;
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.fsu-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #b3153a;
+  cursor: pointer;
+}
+
+.fsu-form-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 2vh, 24px) clamp(24px, 4vw, 64px) clamp(16px, 3vh, 40px);
+}
+
+.fsu-form-card {
+  width: 100%;
+  max-width: 840px;
+}
+
+.fsu-heading {
+  margin: 0 0 4px;
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.fsu-subheading {
+  margin: 0 0 clamp(16px, 3vh, 30px);
+  font-size: 13.5px;
+  color: #6b7280;
+}
+
+.fsu-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.fsu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(10px, 1.8vh, 18px) 20px;
+  margin-bottom: 4px;
+}
+
+.fsu-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fsu-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 5px;
+}
+
+.fsu-input {
+  width: 100%;
+  height: clamp(40px, 5.4vh, 46px);
+  background: #eaeaec;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: #1a1a1a;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.fsu-input::placeholder {
+  color: #9b9b9b;
+}
+
+.fsu-input:focus {
+  border-color: #7a0e2c;
+  background: #ffffff;
+}
+
+.fsu-input-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fsu-input-icon-wrap > svg:first-child {
+  position: absolute;
+  left: 14px;
+  color: #6b7280;
+  pointer-events: none;
+}
+
+.fsu-input-with-icon {
+  padding-left: 38px;
+  padding-right: 38px;
+}
+
+.fsu-eye {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  padding: 2px;
+}
+
+.fsu-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #e9c7ce;
+  color: #5c0a21;
+  border-radius: 10px;
+  padding: clamp(8px, 1.6vh, 12px) 14px;
+  margin: clamp(10px, 2vh, 16px) 0 clamp(12px, 2vh, 20px);
+}
+
+.fsu-info-box svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.fsu-info-box p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.fsu-error {
+  margin: -6px 0 12px;
+  font-size: 13px;
+  color: #d93025;
+  text-align: center;
+}
+
+.fsu-submit {
+  height: clamp(42px, 5.6vh, 48px);
+  border: none;
+  border-radius: 10px;
+  background: #7a0e2c;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fsu-submit:hover:not(:disabled) {
+  background: #5c0a21;
+}
+
+.fsu-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Success state ---------- */
+
+.fsu-success {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.fsu-success-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #e9c7ce;
+  color: #5c0a21;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.fsu-success h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #1a1a1a;
+}
+
+.fsu-success p {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.fsu-success .fsu-submit {
+  width: 100%;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 980px) {
+  .fsu-page {
+    grid-template-columns: 1fr;
+  }
+
+  .fsu-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .fsu-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fsu-topbar-login span {
+    display: none;
+  }
+
+  .fsu-form-wrap {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+}

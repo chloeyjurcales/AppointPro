@@ -18,8 +18,9 @@ type BookingConfirmationScreenProps = {
   doctorName?: string;
   department?: string;
   date?: string;
-  time?: string;
+  bookedTimeRangeLabel?: string;
   duration?: string;
+  purpose?: string;
   consultationCategory?: string;
   location?: string;
   mode?: string;
@@ -34,8 +35,9 @@ export default function BookingConfirmationScreen({
   doctorName = 'Dr. Juan Dela Cruz',
   department = 'Computer Studies',
   date = 'May 13, 2026 (Tue)',
-  time = '10:00 AM',
+  bookedTimeRangeLabel = '10:00 AM - 10:30 AM',
   duration = '30 mins',
+  purpose = '',
   consultationCategory = 'Academic Advising',
   location = 'Room 305, CHMC Main Campus',
   mode = 'Face-to-Face',
@@ -83,7 +85,7 @@ export default function BookingConfirmationScreen({
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="time-outline" size={16} color={colors.primary} style={styles.detailIcon} />
-            <Text style={styles.detailText}>{time}</Text>
+            <Text style={styles.detailText}>{bookedTimeRangeLabel}</Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="hourglass-outline" size={16} color={colors.primary} style={styles.detailIcon} />
@@ -101,6 +103,16 @@ export default function BookingConfirmationScreen({
             <Ionicons name="people-outline" size={16} color={colors.primary} style={styles.detailIcon} />
             <Text style={styles.detailText}>{mode}</Text>
           </View>
+
+          {purpose.length > 0 && (
+            <>
+              <View style={styles.detailsDivider} />
+              <View style={styles.purposeBlock}>
+                <Text style={styles.purposeLabel}>Purpose of Appointment</Text>
+                <Text style={styles.purposeText}>{purpose}</Text>
+              </View>
+            </>
+          )}
 
           <View style={styles.detailsDivider} />
 
@@ -225,6 +237,18 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 12,
     color: colors.textDark,
+  },
+  purposeBlock: {},
+  purposeLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  purposeText: {
+    fontSize: 12,
+    color: colors.textDark,
+    lineHeight: 17,
   },
   refLabel: {
     fontSize: 11,

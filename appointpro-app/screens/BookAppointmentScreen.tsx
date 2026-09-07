@@ -5,6 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -24,10 +27,14 @@ export type BookingSelection = {
   slot: ScheduleSlot;
   duration: string;
   durationMinutes: number;
+  purpose: string;
+  bookingId: string;
+  bookedTimeRangeLabel: string;
 };
 
 type BookAppointmentScreenProps = {
   scheduleByDate: Record<number, ScheduleSlot[]>;
+  studentName: string;
   mode?: 'book' | 'reschedule';
   onBack?: () => void;
   onContinue?: (selection: BookingSelection) => void;
@@ -39,6 +46,7 @@ type BookAppointmentScreenProps = {
 
 export default function BookAppointmentScreen({
   scheduleByDate,
+  studentName,
   mode = 'book',
   onBack,
   onContinue,
@@ -55,6 +63,7 @@ export default function BookAppointmentScreen({
   const [selectedDate, setSelectedDate] = useState(defaultDate);
   const [selectedSlotId, setSelectedSlotId] = useState<string | undefined>(initialSlotId);
   const [selectedDurationMinutes, setSelectedDurationMinutes] = useState<number | undefined>();
+  const [purpose, setPurpose] = useState('');
 
   const isReschedule = mode === 'reschedule';
   const slotsForDate = scheduleByDate[selectedDate] ?? [];
@@ -82,8 +91,10 @@ export default function BookAppointmentScreen({
     setSelectedSlotId(undefined);
   };
 
+  const canContinue = !!selectedSlot && !!selectedDurationMinutes && purpose.trim().length > 0;
+
   const handleContinue = () => {
-    if (!selectedSlot || !selectedDay || !selectedDurationMinutes) return;
+    if (!selectedSlot || !selectedDay || !selectedDurationMinutes || !canContinue) return;
     const durationLabel =
       DURATION_OPTIONS.find((d) => d.minutes === selectedDurationMinutes)?.label ?? '';
     onContinue?.({
@@ -92,202 +103,221 @@ export default function BookAppointmentScreen({
       slot: selectedSlot,
       duration: durationLabel,
       durationMinutes: selectedDurationMinutes,
+      purpose: purpose.trim(),
+      bookingId: '',
+      bookedTimeRangeLabel: '',
     });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
-          <Ionicons name="arrow-back" size={22} color={colors.textDark} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Book Appointment</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack}>
+            <Ionicons name="arrow-back" size={22} color={colors.textDark} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Book Appointment</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.doctorCard}>
-          <View style={styles.avatar}>
-            <FontAwesome5 name="user-tie" size={20} color={colors.white} />
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={styles.doctorCard}>
+            <View style={styles.avatar}>
+              <FontAwesome5 name="user-tie" size={20} color={colors.white} />
+            </View>
+            <View>
+              <Text style={styles.doctorName}>{doctorName}</Text>
+              <Text style={styles.doctorDept}>{department}</Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.doctorName}>{doctorName}</Text>
-            <Text style={styles.doctorDept}>{department}</Text>
+
+          <Text style={styles.sectionTitle}>Select Date</Text>
+
+          <View style={styles.dateRow}>
+            {WEEK_DAYS.map((d) => {
+              const isActive = d.date === selectedDate;
+              const hasAvailable = (scheduleByDate[d.date] ?? []).some((s) => !isSlotFull(s));
+              return (
+                <TouchableOpacity
+                  key={d.date}
+                  style={[
+                    styles.dateChip,
+                    isActive && styles.dateChipActive,
+                    !hasAvailable && styles.dateChipDisabled,
+                  ]}
+                  onPress={() => hasAvailable && handleSelectDate(d.date)}
+                  disabled={!hasAvailable}
+                >
+                  <Text
+                    style={[
+                      styles.dateDay,
+                      isActive && styles.dateTextActive,
+                      !hasAvailable && styles.dateTextDisabled,
+                    ]}
+                  >
+                    {d.day}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dateNum,
+                      isActive && styles.dateTextActive,
+                      !hasAvailable && styles.dateTextDisabled,
+                    ]}
+                  >
+                    {d.date}
+                  </Text>
+                  <View
+                    style={[
+                      styles.dateDot,
+                      hasAvailable
+                        ? isActive
+                          ? styles.dateDotActiveFilled
+                          : styles.dateDotFilled
+                        : styles.dateDotEmpty,
+                    ]}
+                  />
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </View>
 
-        <Text style={styles.sectionTitle}>Select Date</Text>
-
-        <View style={styles.dateRow}>
-          {WEEK_DAYS.map((d) => {
-            const isActive = d.date === selectedDate;
-            const hasAvailable = (scheduleByDate[d.date] ?? []).some((s) => !isSlotFull(s));
-            return (
-              <TouchableOpacity
-                key={d.date}
-                style={[
-                  styles.dateChip,
-                  isActive && styles.dateChipActive,
-                  !hasAvailable && styles.dateChipDisabled,
-                ]}
-                onPress={() => hasAvailable && handleSelectDate(d.date)}
-                disabled={!hasAvailable}
-              >
-                <Text
-                  style={[
-                    styles.dateDay,
-                    isActive && styles.dateTextActive,
-                    !hasAvailable && styles.dateTextDisabled,
-                  ]}
-                >
-                  {d.day}
-                </Text>
-                <Text
-                  style={[
-                    styles.dateNum,
-                    isActive && styles.dateTextActive,
-                    !hasAvailable && styles.dateTextDisabled,
-                  ]}
-                >
-                  {d.date}
-                </Text>
-                <View
-                  style={[
-                    styles.dateDot,
-                    hasAvailable
-                      ? isActive
-                        ? styles.dateDotActiveFilled
-                        : styles.dateDotFilled
-                      : styles.dateDotEmpty,
-                  ]}
-                />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.selectedDayLabel}>{selectedDay?.fullLabel}</Text>
-          <Text style={styles.availableCountText}>
-            {availableCount} slot{availableCount === 1 ? '' : 's'} available
-          </Text>
-        </View>
-
-        <Text style={styles.sectionTitle}>Select Time & Location</Text>
-
-        {slotsForDate.length === 0 ? (
-          <View style={styles.emptySchedule}>
-            <Ionicons name="calendar-outline" size={22} color={colors.textMuted} />
-            <Text style={styles.emptyScheduleText}>
-              No slots offered this day. Try another date.
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.selectedDayLabel}>{selectedDay?.fullLabel}</Text>
+            <Text style={styles.availableCountText}>
+              {availableCount} slot{availableCount === 1 ? '' : 's'} available
             </Text>
           </View>
-        ) : (
-          slotsForDate.map((slot) => {
-            const isSelected = slot.id === selectedSlotId;
-            const full = isSlotFull(slot);
-            const remaining = getRemainingMinutes(slot);
-            return (
-              <TouchableOpacity
-                key={slot.id}
-                style={[
-                  styles.slotCard,
-                  isSelected && styles.slotCardSelected,
-                  full && styles.slotCardDisabled,
-                ]}
-                onPress={() => !full && setSelectedSlotId(slot.id)}
-                activeOpacity={full ? 1 : 0.75}
-                disabled={full}
-              >
-                <View
-                  style={[
-                    styles.radioOuter,
-                    isSelected && styles.radioOuterActive,
-                    full && styles.radioOuterDisabled,
-                  ]}
-                >
-                  {isSelected && <View style={styles.radioInner} />}
-                </View>
 
-                <View style={styles.slotTextWrap}>
-                  <Text style={[styles.slotTime, full && styles.slotTextDisabled]}>
-                    {slot.time}
-                  </Text>
-                  <View style={styles.slotMetaRow}>
-                    <Ionicons
-                      name={slot.mode === 'Online' ? 'wifi-outline' : 'location-outline'}
-                      size={12}
-                      color={colors.textMuted}
-                    />
-                    <Text style={[styles.slotLocation, full && styles.slotTextDisabled]}>
-                      {slot.location}
+          <Text style={styles.sectionTitle}>Select Time & Location</Text>
+
+          {slotsForDate.length === 0 ? (
+            <View style={styles.emptySchedule}>
+              <Ionicons name="calendar-outline" size={22} color={colors.textMuted} />
+              <Text style={styles.emptyScheduleText}>
+                No slots offered this day. Try another date.
+              </Text>
+            </View>
+          ) : (
+            slotsForDate.map((slot) => {
+              const isSelected = slot.id === selectedSlotId;
+              const full = isSlotFull(slot);
+              const remaining = getRemainingMinutes(slot);
+              return (
+                <TouchableOpacity
+                  key={slot.id}
+                  style={[
+                    styles.slotCard,
+                    isSelected && styles.slotCardSelected,
+                    full && styles.slotCardDisabled,
+                  ]}
+                  onPress={() => !full && setSelectedSlotId(slot.id)}
+                  activeOpacity={full ? 1 : 0.75}
+                  disabled={full}
+                >
+                  <View
+                    style={[
+                      styles.radioOuter,
+                      isSelected && styles.radioOuterActive,
+                      full && styles.radioOuterDisabled,
+                    ]}
+                  >
+                    {isSelected && <View style={styles.radioInner} />}
+                  </View>
+
+                  <View style={styles.slotTextWrap}>
+                    <Text style={[styles.slotTime, full && styles.slotTextDisabled]}>
+                      {slot.time}
+                    </Text>
+                    <View style={styles.slotMetaRow}>
+                      <Ionicons
+                        name={slot.mode === 'Online' ? 'wifi-outline' : 'location-outline'}
+                        size={12}
+                        color={colors.textMuted}
+                      />
+                      <Text style={[styles.slotLocation, full && styles.slotTextDisabled]}>
+                        {slot.location}
+                      </Text>
+                    </View>
+                    <Text style={[styles.slotMode, full && styles.slotTextDisabled]}>
+                      {full ? 'Fully booked' : `${remaining} min remaining`}
                     </Text>
                   </View>
-                  <Text style={[styles.slotMode, full && styles.slotTextDisabled]}>
-                    {full ? 'Fully booked' : `${remaining} min remaining`}
-                  </Text>
-                </View>
 
-                {full && <Text style={styles.bookedTag}>Full</Text>}
-              </TouchableOpacity>
-            );
-          })
-        )}
+                  {full && <Text style={styles.bookedTag}>Full</Text>}
+                </TouchableOpacity>
+              );
+            })
+          )}
 
-        {selectedSlot && !isSlotFull(selectedSlot) && (
-          <>
-            <Text style={styles.sectionTitle}>Appointment Duration</Text>
-            <View style={styles.durationRow}>
-              {DURATION_OPTIONS.map((option) => {
-                const fits = fittingOptions.some((o) => o.minutes === option.minutes);
-                const isActive = option.minutes === selectedDurationMinutes;
-                return (
-                  <TouchableOpacity
-                    key={option.label}
-                    style={[
-                      styles.durationChip,
-                      isActive && styles.durationChipActive,
-                      !fits && styles.durationChipDisabled,
-                    ]}
-                    onPress={() => fits && setSelectedDurationMinutes(option.minutes)}
-                    disabled={!fits}
-                  >
-                    <Text
+          {selectedSlot && !isSlotFull(selectedSlot) && (
+            <>
+              <Text style={styles.sectionTitle}>Appointment Duration</Text>
+              <View style={styles.durationRow}>
+                {DURATION_OPTIONS.map((option) => {
+                  const fits = fittingOptions.some((o) => o.minutes === option.minutes);
+                  const isActive = option.minutes === selectedDurationMinutes;
+                  return (
+                    <TouchableOpacity
+                      key={option.label}
                       style={[
-                        styles.durationChipText,
-                        isActive && styles.durationChipTextActive,
-                        !fits && styles.durationChipTextDisabled,
+                        styles.durationChip,
+                        isActive && styles.durationChipActive,
+                        !fits && styles.durationChipDisabled,
                       ]}
+                      onPress={() => fits && setSelectedDurationMinutes(option.minutes)}
+                      disabled={!fits}
                     >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <Text style={styles.durationHint}>
-              {getRemainingMinutes(selectedSlot)} minutes remaining in this slot — only
-              durations that fit are selectable.
-            </Text>
-          </>
-        )}
-      </ScrollView>
+                      <Text
+                        style={[
+                          styles.durationChipText,
+                          isActive && styles.durationChipTextActive,
+                          !fits && styles.durationChipTextDisabled,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={styles.durationHint}>
+                {getRemainingMinutes(selectedSlot)} minutes remaining in this slot — your exact
+                start time will be assigned automatically based on what's already booked.
+              </Text>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!selectedSlot || !selectedDurationMinutes) && styles.continueButtonDisabled,
-          ]}
-          onPress={handleContinue}
-          activeOpacity={0.85}
-          disabled={!selectedSlot || !selectedDurationMinutes}
-        >
-          <Text style={styles.continueButtonText}>
-            {isReschedule ? 'Reschedule' : 'Continue'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+              <Text style={styles.sectionTitle}>Purpose of Appointment</Text>
+              <TextInput
+                style={styles.purposeInput}
+                placeholder="e.g. Discuss thesis proposal, request academic advising..."
+                placeholderTextColor="#9B9B9B"
+                value={purpose}
+                onChangeText={setPurpose}
+                multiline
+                numberOfLines={3}
+              />
+              <Text style={styles.purposeHint}>
+                Let {doctorName} know what you'd like to discuss so they can prepare.
+              </Text>
+            </>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.continueButton, !canContinue && styles.continueButtonDisabled]}
+            onPress={handleContinue}
+            activeOpacity={0.85}
+            disabled={!canContinue}
+          >
+            <Text style={styles.continueButtonText}>
+              {isReschedule ? 'Reschedule' : 'Continue'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -296,6 +326,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.white,
+  },
+  flex: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -531,6 +564,22 @@ const styles = StyleSheet.create({
   durationHint: {
     fontSize: 11,
     color: colors.textMuted,
+    marginBottom: spacing.lg,
+  },
+  purposeInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: spacing.md,
+    fontSize: 13,
+    color: colors.textDark,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  purposeHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 6,
     marginBottom: spacing.lg,
   },
   footer: {
