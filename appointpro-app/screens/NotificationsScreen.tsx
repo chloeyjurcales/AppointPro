@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,107 +10,167 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';
-
-type NotificationItem = {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-  time: string;
-};
-
-const NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: '1',
-    icon: 'notifications-outline',
-    title: 'Appointment Reminder',
-    description: 'You have an appointment today at 10:00 AM.',
-    time: '8:00 AM',
-  },
-  {
-    id: '2',
-    icon: 'sync-outline',
-    title: 'Queue Update',
-    description: "You're next in line.",
-    time: '9:30 AM',
-  },
-  {
-    id: '3',
-    icon: 'megaphone-outline',
-    title: 'Faculty Announcement',
-    description: 'New schedule for this week.',
-    time: '7:30 AM',
-  },
-  {
-    id: '4',
-    icon: 'notifications-outline',
-    title: 'Appointment Reminder',
-    description: 'You have an appointment today at 11:00 AM.',
-    time: '8:00 AM',
-  },
-  {
-    id: '5',
-    icon: 'sync-outline',
-    title: 'Queue Update',
-    description: "You're next in line.",
-    time: '11:30 AM',
-  },
-];
+import { NotificationItem, INITIAL_STUDENT_NOTIFICATIONS } from '../data/notifications';
 
 type NotificationsScreenProps = {
+  // Controlled from App.tsx so events elsewhere (like a faculty member
+  // cancelling/rescheduling an appointment) can push new notifications in.
+  // Falls back to the mock list so this screen still works standalone.
+  notifications?: NotificationItem[];
+  onDeleteNotifications?: (ids: string[]) => void;
   onMenuPress?: () => void;
-  onMorePress?: () => void;
   onMarkAllRead?: () => void;
   onSelectNotification?: (item: NotificationItem) => void;
   onTabChange?: (tab: TabKey) => void;
 };
 
 export default function NotificationsScreen({
+  notifications = INITIAL_STUDENT_NOTIFICATIONS,
+  onDeleteNotifications,
   onMenuPress,
-  onMorePress,
   onMarkAllRead,
   onSelectNotification,
   onTabChange,
 }: NotificationsScreenProps) {
+  const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const allSelected = selectedIds.size > 0 && selectedIds.size === notifications.length;
+
+  const enterSelectMode = () => {
+    setOptionsMenuOpen(false);
+    setSelectMode(true);
+    setSelectedIds(new Set());
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(notifications.map((n) => n.id)));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    onDeleteNotifications?.(Array.from(selectedIds));
+    exitSelectMode();
+  };
+
+  const handleRowPress = (item: NotificationItem) => {
+    if (selectMode) {
+      toggleSelected(item.id);
+    } else {
+      onSelectNotification?.(item);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onMenuPress}>
-          <Ionicons name="menu" size={24} color={colors.textDark} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity onPress={onMorePress}>
-          <Ionicons name="ellipsis-vertical" size={20} color={colors.textDark} />
-        </TouchableOpacity>
+        {selectMode ? (
+          <TouchableOpacity onPress={exitSelectMode}>
+            <Ionicons name="close" size={24} color={colors.textDark} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={onMenuPress}>
+            <Ionicons name="menu" size={24} color={colors.textDark} />
+          </TouchableOpacity>
+        )}
+        <Text style={styles.headerTitle}>
+          {selectMode ? `${selectedIds.size} selected` : 'Notifications'}
+        </Text>
+        {selectMode ? (
+          <TouchableOpacity
+            onPress={handleDeleteSelected}
+            disabled={selectedIds.size === 0}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={22}
+              color={selectedIds.size === 0 ? colors.textMuted : colors.danger}
+            />
+          </TouchableOpacity>
+        ) : (
+          <View>
+            <TouchableOpacity onPress={() => setOptionsMenuOpen((prev) => !prev)}>
+              <Ionicons name="ellipsis-vertical" size={20} color={colors.textDark} />
+            </TouchableOpacity>
+            {optionsMenuOpen && (
+              <View style={styles.optionsDropdown}>
+                <TouchableOpacity style={styles.optionsRow} onPress={enterSelectMode}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color={colors.textDark} />
+                  <Text style={styles.optionsRowText}>Select</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>Today</Text>
-        <TouchableOpacity onPress={onMarkAllRead}>
-          <Text style={styles.link}>Mark all as read</Text>
-        </TouchableOpacity>
+        {selectMode ? (
+          <TouchableOpacity onPress={toggleSelectAll}>
+            <Text style={styles.link}>{allSelected ? 'Deselect all' : 'Select all'}</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>Today</Text>
+            <TouchableOpacity onPress={onMarkAllRead}>
+              <Text style={styles.link}>Mark all as read</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       <FlatList
-        data={NOTIFICATIONS}
+        data={notifications}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => onSelectNotification?.(item)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.iconWrap}>
-              <Ionicons name={item.icon} size={18} color={colors.primary} />
-            </View>
-            <View style={styles.textWrap}>
-              <Text style={styles.itemTitle}>{item.title}</Text>
-              <Text style={styles.itemDesc}>{item.description}</Text>
-            </View>
-            <Text style={styles.itemTime}>{item.time}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const isSelected = selectedIds.has(item.id);
+          return (
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => handleRowPress(item)}
+              activeOpacity={0.7}
+            >
+              {selectMode && (
+                <View style={[styles.checkboxOuter, isSelected && styles.checkboxOuterActive]}>
+                  {isSelected && <Ionicons name="checkmark" size={12} color={colors.white} />}
+                </View>
+              )}
+              <View style={styles.iconWrap}>
+                <Ionicons name={item.icon} size={18} color={colors.primary} />
+              </View>
+              <View style={styles.textWrap}>
+                <Text style={styles.itemTitle}>{item.title}</Text>
+                <Text style={styles.itemDesc}>{item.description}</Text>
+              </View>
+              <Text style={styles.itemTime}>{item.time}</Text>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>You have no notifications.</Text>
+        }
       />
 
       <BottomTabBar active="notifications" onChange={onTabChange} />
@@ -133,6 +193,35 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
+    color: colors.textDark,
+  },
+  optionsDropdown: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: spacing.xs,
+    minWidth: 140,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    zIndex: 10,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  optionsRowText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.textDark,
   },
   sectionHeaderRow: {
@@ -163,6 +252,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  checkboxOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    marginTop: 2,
+  },
+  checkboxOuterActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
   iconWrap: {
     width: 34,
     height: 34,
@@ -188,5 +292,11 @@ const styles = StyleSheet.create({
   itemTime: {
     fontSize: 11,
     color: colors.textMuted,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: spacing.xl,
   },
 });

@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
+import AnimatedPressable from './AnimatedPressable';
 
 export type TabKey = 'home' | 'directory' | 'appointments' | 'notifications' | 'profile';
 
@@ -24,11 +25,11 @@ export default function BottomTabBar({ active, onChange }: BottomTabBarProps) {
       {TABS.map((tab) => {
         const isActive = tab.key === active;
         return (
-          <TouchableOpacity
+          <AnimatedPressable
             key={tab.key}
             style={styles.tab}
             onPress={() => onChange?.(tab.key)}
-            activeOpacity={0.7}
+            scaleTo={0.88}
           >
             <Ionicons
               name={tab.icon}
@@ -36,7 +37,7 @@ export default function BottomTabBar({ active, onChange }: BottomTabBarProps) {
               color={isActive ? colors.primary : colors.textMuted}
             />
             <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         );
       })}
     </View>

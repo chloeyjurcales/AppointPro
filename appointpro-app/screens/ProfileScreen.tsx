@@ -29,7 +29,6 @@ type ProfileScreenProps = {
   photoUri?: string;
   onBack?: () => void;
   onPersonalInformation?: () => void;
-  onChangePassword?: () => void;
   onAbout?: () => void;
   onLogout?: () => void;
   onTabChange?: (tab: TabKey) => void;
@@ -45,14 +44,12 @@ export default function ProfileScreen({
   photoUri,
   onBack,
   onPersonalInformation,
-  onChangePassword,
   onAbout,
   onLogout,
   onTabChange,
 }: ProfileScreenProps) {
   const menuItems: MenuItem[] = [
     { key: 'personal', icon: 'person-outline', label: 'Personal Information', onPress: onPersonalInformation },
-    { key: 'password', icon: 'lock-closed-outline', label: 'Change Password', onPress: onChangePassword },
     { key: 'about', icon: 'information-circle-outline', label: 'About AppointmentPro', onPress: onAbout },
   ];
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Animated } from 'react-native';
+import { Animated, Easing } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import LoginScreen from './screens/LoginScreen';
@@ -17,18 +17,29 @@ import AppointmentsScreen from './screens/AppointmentsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import FacultyHomeScreen from './screens/FacultyHomeScreen';
-import FacultyDirectoryScreen from './screens/FacultyDirectoryScreen';
+import FacultyDirectoryScreen, { StudentAppointment } from './screens/FacultyDirectoryScreen';
+import StudentProfileScreen from './screens/StudentProfileScreen';
 import FacultyAvailabilityScreen from './screens/FacultyAvailabilityScreen';
 import AddTimeSlotScreen, { NewFacultySlotInput } from './screens/AddTimeSlotScreen';
 import FacultyNotificationsScreen from './screens/FacultyNotificationsScreen';
 import FacultyProfileMenuScreen from './screens/FacultyProfileMenuScreen';
-import ChangePasswordScreen from './screens/ChangePasswordScreen';
+import PersonalInformationScreen, {
+  PersonalInformation,
+} from './screens/PersonalInformationScreen';
+import FacultyPersonalInformationScreen, {
+  FacultyPersonalInformation,
+} from './screens/FacultyPersonalInformationScreen';
 import AboutScreen from './screens/AboutScreen';
 import WalkInQueueScreen from './screens/WalkInQueueScreen';
 import FacultyRescheduleAppointmentScreen from './screens/FacultyRescheduleAppointmentScreen';
 import RescheduleProposalScreen from './screens/RescheduleProposalScreen';
 import FacultyCancelAppointmentScreen from './screens/FacultyCancelAppointmentScreen';
+import FacultyActionSuccessScreen, {
+  FacultyActionSuccessType,
+} from './screens/FacultyActionSuccessScreen';
+import BookingRescheduleScreen from './screens/BookingRescheduleScreen';
 import RecurringScheduleScreen from './screens/RecurringScheduleScreen';
+import SideMenu, { SideMenuKey, SideMenuRole } from './components/SideMenu';
 import { TabKey } from './components/BottomTabBar';
 import { FacultyTabKey } from './components/FacultyBottomTabBar';
 import {
@@ -45,6 +56,11 @@ import {
 } from './data/facultySlots';
 import { RecurringRule, generateSlotsFromRule } from './data/recurringSchedule';
 import { QueueEntry, INITIAL_QUEUE } from './data/queue';
+import {
+  NotificationItem,
+  INITIAL_STUDENT_NOTIFICATIONS,
+  createNotification,
+} from './data/notifications';
 
 type Screen =
   | 'login'
@@ -58,23 +74,30 @@ type Screen =
   | 'rescheduleAppointment'
   | 'bookingConfirmation'
   | 'bookingCancellation'
+  | 'bookingReschedule'
   | 'appointmentDetails'
   | 'appointments'
   | 'notifications'
   | 'profile'
   | 'facultyHome'
   | 'facultyDirectory'
+  | 'studentProfile'
   | 'facultyAvailability'
   | 'addTimeSlot'
   | 'facultyNotifications'
   | 'facultyProfileMenu'
-  | 'changePassword'
+  | 'personalInformation'
+  | 'facultyPersonalInformation'
   | 'about'
   | 'walkInQueue'
   | 'facultyRescheduleAppointment'
   | 'rescheduleProposal'
   | 'facultyCancelAppointment'
+  | 'facultyActionSuccess'
   | 'recurringSchedule';
+
+type StudentProfileData = PersonalInformation & { studentId: string; role: string };
+type FacultyProfileData = FacultyPersonalInformation & { employeeId: string; department: string };
 
 type PendingReschedule = {
   reason: string;
@@ -88,11 +111,66 @@ type PendingReschedule = {
   proposedMode: string;
 };
 
+// Drives the confirmation screen shown to the faculty member right after
+// they cancel or reschedule a student's appointment.
+type FacultyActionResult = {
+  type: FacultyActionSuccessType;
+  studentName: string;
+  category: string;
+  dateLabel: string;
+  timeLabel: string;
+  location: string;
+  mode: string;
+  reason?: string;
+  referenceNo: string;
+};
+
+// Drives the confirmation screen shown to the student right after they
+// cancel or reschedule their own appointment.
+type StudentBookingResult = {
+  type: 'cancelled' | 'rescheduled';
+  doctorName: string;
+  department: string;
+  dateLabel: string;
+  timeLabel: string;
+  category: string;
+  location: string;
+  mode: string;
+  referenceNo: string;
+};
+
 const CURRENT_STUDENT_NAME = 'Chloey Lyca Jurcales';
+
+// Turns a bookingId (e.g. "slot-3-1725720000000") into a stable, readable
+// reference number like "APP-2026-720000" for the confirmation screens.
+function toReferenceNo(bookingId: string): string {
+  const digits = bookingId.replace(/\D/g, '').slice(-6).padStart(6, '0');
+  return `APP-2026-${digits}`;
+}
 
 function AppContent() {
   const [screen, setScreen] = useState<Screen>('login');
   const [previousScreen, setPreviousScreen] = useState<Screen>('profile');
+  const [userRole, setUserRole] = useState<SideMenuRole>('student');
+  const [sideMenuOpen, setSideMenuOpen] = useState(false);
+
+  const [studentProfile, setStudentProfile] = useState<StudentProfileData>({
+    name: 'Chloey Lyca Jurcales',
+    role: 'BSIT Student',
+    studentId: '2023-00123',
+    email: 'chloeyju@gmail.com',
+    department: 'College of Computer Studies',
+    yearLevel: '3rd Year',
+  });
+
+  const [facultyProfile, setFacultyProfile] = useState<FacultyProfileData>({
+    name: 'Dr. Juan DelaCruz',
+    department: 'Computer Studies',
+    employeeId: '2023-00123',
+    email: 'juandelacruz@gmail.com',
+    fullDepartment: 'Computer Studies Socsiety',
+    consultationTypes: 'Face-to-Face   Online',
+  });
 
   const [scheduleByDate, setScheduleByDate] =
     useState<Record<number, ScheduleSlot[]>>(INITIAL_SCHEDULE_BY_DATE);
@@ -110,19 +188,45 @@ function AppContent() {
   const [isChoosingAfterReject, setIsChoosingAfterReject] = useState(false);
   const [pendingReschedule, setPendingReschedule] = useState<PendingReschedule | null>(null);
   const [cancelledNotice, setCancelledNotice] = useState<string | null>(null);
+  const [facultyActionResult, setFacultyActionResult] = useState<FacultyActionResult | null>(
+    null
+  );
+  const [studentBookingResult, setStudentBookingResult] = useState<StudentBookingResult | null>(
+    null
+  );
+
+  const [studentNotifications, setStudentNotifications] = useState<NotificationItem[]>(
+    INITIAL_STUDENT_NOTIFICATIONS
+  );
 
   const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE);
   const [currentStudentQueueId, setCurrentStudentQueueId] = useState<string | null>(null);
+
+  const [selectedStudent, setSelectedStudent] = useState<StudentAppointment | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Stop any in-flight transition before starting the next one so rapid
+    // screen switches (e.g. fast tab taps) don't fight each other or jump.
+    fadeAnim.stopAnimation();
+    slideAnim.stopAnimation();
     fadeAnim.setValue(0);
-    slideAnim.setValue(16);
+    slideAnim.setValue(28);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
     ]).start();
   }, [screen]);
 
@@ -166,9 +270,14 @@ function AppContent() {
     }
   };
 
-  const goToChangePassword = (from: Screen) => {
+  const goToPersonalInformation = (from: Screen) => {
     setPreviousScreen(from);
-    setScreen('changePassword');
+    setScreen('personalInformation');
+  };
+
+  const goToFacultyPersonalInformation = (from: Screen) => {
+    setPreviousScreen(from);
+    setScreen('facultyPersonalInformation');
   };
 
   const goToAbout = (from: Screen) => {
@@ -176,6 +285,51 @@ function AppContent() {
     setScreen('about');
   };
 
+  // --- Side menu handlers ---
+  const openSideMenu = (role: SideMenuRole) => {
+    setUserRole(role);
+    setSideMenuOpen(true);
+  };
+
+  const handleSideMenuNavigate = (key: SideMenuKey) => {
+    setSideMenuOpen(false);
+    if (key === 'helpSupport') {
+      goToAbout(screen);
+      return;
+    }
+    if (key === 'settings') {
+      // TODO: point this at a real Settings screen once one exists.
+      console.log('Settings pressed — no Settings screen wired up yet.');
+      return;
+    }
+    setScreen(key);
+  };
+
+  // Maps the current app screen back to a SideMenu key so the matching
+  // row can be highlighted while the menu is open.
+  const sideMenuActiveKey: SideMenuKey | undefined = (
+    [
+      'home',
+      'directory',
+      'appointments',
+      'notifications',
+      'profile',
+      'facultyHome',
+      'facultyDirectory',
+      'facultyAvailability',
+      'facultyNotifications',
+      'facultyProfileMenu',
+    ] as SideMenuKey[]
+  ).includes(screen as SideMenuKey)
+    ? (screen as SideMenuKey)
+    : undefined;
+
+  const handleSideMenuLogout = () => {
+    setSideMenuOpen(false);
+    setScreen('login');
+  };
+
+  // --- Faculty availability editing handlers (one-off slots) ---
   const handleToggleFacultySlot = (dateKey: string, slotId: string) => {
     setFacultySlotsByDate((prev) => ({
       ...prev,
@@ -214,6 +368,7 @@ function AppContent() {
     setScreen('facultyAvailability');
   };
 
+  // --- Recurring weekly schedule handlers ---
   const handleCreateRecurringRule = (rule: RecurringRule) => {
     const generated = generateSlotsFromRule(rule);
     setFacultySlotsByDate((prev) => {
@@ -238,6 +393,7 @@ function AppContent() {
     });
   };
 
+  // --- Walk-in queue handlers ---
   const handleJoinQueue = () => {
     const newEntry: QueueEntry = { id: `q-${Date.now()}`, studentName: 'You' };
     setQueue((prev) => [...prev, newEntry]);
@@ -249,6 +405,21 @@ function AppContent() {
     setCurrentStudentQueueId(null);
   };
 
+  // --- Notifications ---
+  // Pushes a new notification onto the student's notification feed. Used
+  // to notify the student whenever a faculty member cancels or proposes a
+  // reschedule for their appointment.
+  const addStudentNotification = (
+    input: Pick<NotificationItem, 'icon' | 'title' | 'description'>
+  ) => {
+    setStudentNotifications((prev) => [createNotification(input), ...prev]);
+  };
+
+  const handleDeleteStudentNotifications = (ids: string[]) => {
+    setStudentNotifications((prev) => prev.filter((n) => !ids.includes(n.id)));
+  };
+
+  // --- Cancellation ---
   const releaseCurrentBooking = () => {
     if (!confirmedBooking) return;
     setScheduleByDate((prev) =>
@@ -257,12 +428,114 @@ function AppContent() {
   };
 
   const handleFacultyCancel = (reason: string) => {
+    if (!confirmedBooking) return;
+
+    const { dateLabel, bookedTimeRangeLabel: timeLabel, slot, bookingId } = confirmedBooking;
+
     releaseCurrentBooking();
     setCancelledNotice(`Your appointment was cancelled by the faculty. Reason: ${reason}`);
+
+    addStudentNotification({
+      icon: 'close-circle-outline',
+      title: 'Appointment Cancelled',
+      description: `Your appointment on ${dateLabel} at ${timeLabel} was cancelled by the faculty. Reason: ${reason}`,
+    });
+
+    setFacultyActionResult({
+      type: 'cancelled',
+      studentName: CURRENT_STUDENT_NAME,
+      category: 'Academic Advising',
+      dateLabel,
+      timeLabel,
+      location: slot.location,
+      mode: slot.mode,
+      reason,
+      referenceNo: toReferenceNo(bookingId),
+    });
+
     setConfirmedBooking(null);
-    setScreen('facultyDirectory');
+    setScreen('facultyActionSuccess');
   };
 
+  // --- Student-initiated cancellation ---
+  const handleStudentCancel = () => {
+    if (!confirmedBooking) return;
+
+    const { dateLabel, bookedTimeRangeLabel: timeLabel, slot, bookingId } = confirmedBooking;
+
+    releaseCurrentBooking();
+
+    setStudentBookingResult({
+      type: 'cancelled',
+      doctorName: facultyProfile.name,
+      department: facultyProfile.department,
+      dateLabel,
+      timeLabel,
+      category: 'Academic Advising',
+      location: slot.location,
+      mode: slot.mode,
+      referenceNo: toReferenceNo(bookingId),
+    });
+
+    setConfirmedBooking(null);
+    setScreen('bookingCancellation');
+  };
+
+  // --- Student-initiated reschedule ---
+  const handleStudentReschedule = (selection: BookingSelection) => {
+    if (!confirmedBooking) return;
+
+    const updated = releaseMinutes(
+      scheduleByDate,
+      confirmedBooking.date,
+      confirmedBooking.slot.id,
+      confirmedBooking.bookingId
+    );
+
+    const { scheduleByDate: afterBooking, startOffset } = bookMinutes(
+      updated,
+      selection.date,
+      selection.slot.id,
+      selection.durationMinutes,
+      CURRENT_STUDENT_NAME
+    );
+    if (startOffset === null) return;
+
+    setScheduleByDate(afterBooking);
+
+    const bookedSlot = (afterBooking[selection.date] ?? []).find(
+      (s) => s.id === selection.slot.id
+    );
+    const newBooking = bookedSlot?.bookings[bookedSlot.bookings.length - 1];
+    const bookedTimeRangeLabel = bookedSlot
+      ? getBookedTimeRangeLabel(bookedSlot, startOffset, selection.durationMinutes)
+      : selection.slot.time;
+
+    const newConfirmedBooking: BookingSelection = {
+      ...selection,
+      slot: bookedSlot ?? selection.slot,
+      bookingId: newBooking?.bookingId ?? '',
+      bookedTimeRangeLabel,
+    };
+
+    setConfirmedBooking(newConfirmedBooking);
+
+    setStudentBookingResult({
+      type: 'rescheduled',
+      doctorName: facultyProfile.name,
+      department: facultyProfile.department,
+      dateLabel: newConfirmedBooking.dateLabel,
+      timeLabel: bookedTimeRangeLabel,
+      category: 'Academic Advising',
+      location: newConfirmedBooking.slot.location,
+      mode: newConfirmedBooking.slot.mode,
+      referenceNo: toReferenceNo(newConfirmedBooking.bookingId),
+    });
+
+    setScreen('bookingReschedule');
+  };
+
+  // --- Faculty-initiated reschedule ---
   const handleFacultyReschedule = (data: {
     date: number;
     dateLabel: string;
@@ -319,7 +592,25 @@ function AppContent() {
       bookedTimeRangeLabel,
     });
 
-    setScreen('facultyDirectory');
+    addStudentNotification({
+      icon: 'calendar-outline',
+      title: 'Appointment Rescheduled',
+      description: `Your faculty proposed a new schedule: ${data.dateLabel} at ${bookedTimeRangeLabel}. Reason: ${data.reason}. Please review and confirm.`,
+    });
+
+    setFacultyActionResult({
+      type: 'rescheduled',
+      studentName: CURRENT_STUDENT_NAME,
+      category: 'Academic Advising',
+      dateLabel: data.dateLabel,
+      timeLabel: bookedTimeRangeLabel,
+      location: data.slot.location,
+      mode: data.slot.mode,
+      reason: data.reason,
+      referenceNo: toReferenceNo(newBooking?.bookingId ?? ''),
+    });
+
+    setScreen('facultyActionSuccess');
   };
 
   const handleAcceptReschedule = () => {
@@ -354,6 +645,7 @@ function AppContent() {
             onForgotPassword={() => {}}
             onLogin={(role, identifier, password) => {
               console.log('Login attempt:', role, identifier, password);
+              setUserRole(role === 'faculty' ? 'faculty' : 'student');
               setScreen(role === 'faculty' ? 'facultyHome' : 'home');
             }}
           />
@@ -374,6 +666,7 @@ function AppContent() {
             onLogin={() => setScreen('login')}
             onCreateAccount={(data) => {
               console.log('Create student account:', data);
+              setUserRole('student');
               setScreen('home');
             }}
           />
@@ -385,6 +678,7 @@ function AppContent() {
             onLogin={() => setScreen('login')}
             onCreateAccount={(data) => {
               console.log('Create faculty account:', data);
+              setUserRole('faculty');
               setScreen('facultyHome');
             }}
           />
@@ -396,7 +690,7 @@ function AppContent() {
             cancelledNotice={cancelledNotice}
             onDismissCancelledNotice={() => setCancelledNotice(null)}
             onReviewReschedule={() => setScreen('rescheduleProposal')}
-            onMenuPress={() => console.log('Open menu')}
+            onMenuPress={() => openSideMenu('student')}
             onNotificationsPress={() => setScreen('notifications')}
             onViewAppointments={() => setScreen('appointments')}
             onViewNotifications={() => setScreen('notifications')}
@@ -412,7 +706,7 @@ function AppContent() {
 
         {screen === 'directory' && (
           <DirectoryScreen
-            onMenuPress={() => console.log('Open menu')}
+            onMenuPress={() => openSideMenu('student')}
             onFilterPress={() => console.log('Open filters')}
             onSelectFaculty={(faculty) => {
               console.log('Selected faculty:', faculty);
@@ -488,10 +782,7 @@ function AppContent() {
             studentName={CURRENT_STUDENT_NAME}
             mode="reschedule"
             onBack={() => setScreen('appointmentDetails')}
-            onContinue={(selection) => {
-              console.log('Reschedule selection:', selection);
-              setScreen('appointments');
-            }}
+            onContinue={handleStudentReschedule}
           />
         )}
 
@@ -513,10 +804,33 @@ function AppContent() {
           />
         )}
 
-        {screen === 'bookingCancellation' && (
+        {screen === 'bookingCancellation' && studentBookingResult && (
           <BookingCancellationScreen
             onBack={() => setScreen('appointmentDetails')}
             onBackToHome={() => setScreen('home')}
+            doctorName={studentBookingResult.doctorName}
+            department={studentBookingResult.department}
+            date={studentBookingResult.dateLabel}
+            time={studentBookingResult.timeLabel}
+            category={studentBookingResult.category}
+            location={studentBookingResult.location}
+            mode={studentBookingResult.mode}
+            referenceNo={studentBookingResult.referenceNo}
+          />
+        )}
+
+        {screen === 'bookingReschedule' && studentBookingResult && (
+          <BookingRescheduleScreen
+            onBack={() => setScreen('appointmentDetails')}
+            onBackToHome={() => setScreen('home')}
+            doctorName={studentBookingResult.doctorName}
+            department={studentBookingResult.department}
+            date={studentBookingResult.dateLabel}
+            time={studentBookingResult.timeLabel}
+            category={studentBookingResult.category}
+            location={studentBookingResult.location}
+            mode={studentBookingResult.mode}
+            referenceNo={studentBookingResult.referenceNo}
           />
         )}
 
@@ -525,17 +839,13 @@ function AppContent() {
             onBack={() => setScreen('appointments')}
             onMorePress={() => console.log('Open appointment options')}
             onReschedule={() => setScreen('rescheduleAppointment')}
-            onCancelAppointment={() => {
-              releaseCurrentBooking();
-              setConfirmedBooking(null);
-              setScreen('bookingCancellation');
-            }}
+            onCancelAppointment={handleStudentCancel}
           />
         )}
 
         {screen === 'appointments' && (
           <AppointmentsScreen
-            onMenuPress={() => console.log('Open menu')}
+            onMenuPress={() => openSideMenu('student')}
             onSelectAppointment={(appointment) => {
               console.log('Selected appointment:', appointment);
               setScreen('appointmentDetails');
@@ -546,18 +856,20 @@ function AppContent() {
 
         {screen === 'notifications' && (
           <NotificationsScreen
-            onMenuPress={() => console.log('Open menu')}
-            onMorePress={() => console.log('Open notification options')}
+            notifications={studentNotifications}
+            onDeleteNotifications={handleDeleteStudentNotifications}
+            onMenuPress={() => openSideMenu('student')}
             onMarkAllRead={() => console.log('Mark all as read')}
+            onSelectNotification={(item) => console.log('Selected notification:', item)}
             onTabChange={handleTabChange}
           />
         )}
 
         {screen === 'profile' && (
           <ProfileScreen
+            {...studentProfile}
             onBack={() => setScreen('home')}
-            onPersonalInformation={() => console.log('Open personal information')}
-            onChangePassword={() => goToChangePassword('profile')}
+            onPersonalInformation={() => goToPersonalInformation('profile')}
             onAbout={() => goToAbout('profile')}
             onLogout={() => setScreen('login')}
             onTabChange={handleTabChange}
@@ -566,7 +878,7 @@ function AppContent() {
 
         {screen === 'facultyHome' && (
           <FacultyHomeScreen
-            onMenuPress={() => console.log('Open menu')}
+            onMenuPress={() => openSideMenu('faculty')}
             onNotificationsPress={() => setScreen('facultyNotifications')}
             onViewSchedule={() => console.log('View full schedule')}
             onOpenAppointments={() => setScreen('facultyAvailability')}
@@ -579,11 +891,31 @@ function AppContent() {
 
         {screen === 'facultyDirectory' && (
           <FacultyDirectoryScreen
-            onSelectAppointment={(appointment) =>
-              console.log('Selected student appointment:', appointment)
-            }
+            onSelectAppointment={(appointment) => {
+              setSelectedStudent(appointment);
+              setScreen('studentProfile');
+            }}
             onReschedulePress={() => setScreen('facultyRescheduleAppointment')}
             onCancelPress={() => setScreen('facultyCancelAppointment')}
+            onTabChange={handleFacultyTabChange}
+          />
+        )}
+
+        {screen === 'studentProfile' && selectedStudent && (
+          <StudentProfileScreen
+            studentName={selectedStudent.studentName}
+            studentId={selectedStudent.studentId}
+            email={selectedStudent.email}
+            department={selectedStudent.department}
+            yearLevel={selectedStudent.yearLevel}
+            photoUri={selectedStudent.photoUri}
+            appointmentCategory={selectedStudent.category}
+            appointmentDate={selectedStudent.date}
+            appointmentTime={selectedStudent.time}
+            appointmentMode={selectedStudent.mode}
+            appointmentRoom={selectedStudent.room}
+            onBack={() => setScreen('facultyDirectory')}
+            onMessagePress={() => console.log('Message student:', selectedStudent.studentName)}
             onTabChange={handleFacultyTabChange}
           />
         )}
@@ -625,7 +957,6 @@ function AppContent() {
         {screen === 'facultyNotifications' && (
           <FacultyNotificationsScreen
             onBack={() => setScreen('facultyHome')}
-            onMorePress={() => console.log('Open notification options')}
             onMarkAllRead={() => console.log('Mark all as read')}
             onSelectNotification={(item) => console.log('Selected notification:', item)}
             onTabChange={handleFacultyTabChange}
@@ -634,20 +965,40 @@ function AppContent() {
 
         {screen === 'facultyProfileMenu' && (
           <FacultyProfileMenuScreen
+            {...facultyProfile}
             onBack={() => setScreen('facultyHome')}
-            onPersonalInformation={() => console.log('Open personal information')}
-            onChangePassword={() => goToChangePassword('facultyProfileMenu')}
+            onPersonalInformation={() => goToFacultyPersonalInformation('facultyProfileMenu')}
             onAbout={() => goToAbout('facultyProfileMenu')}
             onLogout={() => setScreen('login')}
             onTabChange={handleFacultyTabChange}
           />
         )}
 
-        {screen === 'changePassword' && (
-          <ChangePasswordScreen
+        {screen === 'personalInformation' && (
+          <PersonalInformationScreen
+            {...studentProfile}
             onBack={() => setScreen(previousScreen)}
-            onSave={(data) => {
-              console.log('Change password:', data);
+            onSave={(data, passwordChange) => {
+              setStudentProfile((prev) => ({ ...prev, ...data }));
+              if (passwordChange) {
+                // TODO: call your real change-password API here.
+                console.log('Change password:', passwordChange);
+              }
+              setScreen(previousScreen);
+            }}
+          />
+        )}
+
+        {screen === 'facultyPersonalInformation' && (
+          <FacultyPersonalInformationScreen
+            {...facultyProfile}
+            onBack={() => setScreen(previousScreen)}
+            onSave={(data, passwordChange) => {
+              setFacultyProfile((prev) => ({ ...prev, ...data }));
+              if (passwordChange) {
+                // TODO: call your real change-password API here.
+                console.log('Change password:', passwordChange);
+              }
               setScreen(previousScreen);
             }}
           />
@@ -669,6 +1020,7 @@ function AppContent() {
         {screen === 'facultyRescheduleAppointment' && (
           <FacultyRescheduleAppointmentScreen
             scheduleByDate={scheduleByDate}
+            studentName={CURRENT_STUDENT_NAME}
             purpose={confirmedBooking?.purpose}
             originalDateLabel={confirmedBooking?.dateLabel}
             originalTime={confirmedBooking?.bookedTimeRangeLabel}
@@ -698,6 +1050,7 @@ function AppContent() {
 
         {screen === 'facultyCancelAppointment' && (
           <FacultyCancelAppointmentScreen
+            studentName={CURRENT_STUDENT_NAME}
             dateLabel={confirmedBooking?.dateLabel}
             bookedTimeRangeLabel={confirmedBooking?.bookedTimeRangeLabel}
             location={confirmedBooking?.slot.location}
@@ -706,7 +1059,38 @@ function AppContent() {
             onConfirmCancel={handleFacultyCancel}
           />
         )}
+
+        {screen === 'facultyActionSuccess' && facultyActionResult && (
+          <FacultyActionSuccessScreen
+            type={facultyActionResult.type}
+            studentName={facultyActionResult.studentName}
+            category={facultyActionResult.category}
+            dateLabel={facultyActionResult.dateLabel}
+            timeLabel={facultyActionResult.timeLabel}
+            location={facultyActionResult.location}
+            mode={facultyActionResult.mode}
+            reason={facultyActionResult.reason}
+            referenceNo={facultyActionResult.referenceNo}
+            onBackToDirectory={() => {
+              setFacultyActionResult(null);
+              setScreen('facultyDirectory');
+            }}
+          />
+        )}
       </Animated.View>
+
+      <SideMenu
+        visible={sideMenuOpen}
+        role={userRole}
+        userName={userRole === 'faculty' ? 'Dr. Juan Dela Cruz' : CURRENT_STUDENT_NAME}
+        activeKey={sideMenuActiveKey}
+        // TODO: replace with a real unread-notifications count once that
+        // state is lifted up from NotificationsScreen/FacultyNotificationsScreen.
+        notificationCount={3}
+        onClose={() => setSideMenuOpen(false)}
+        onNavigate={handleSideMenuNavigate}
+        onLogout={handleSideMenuLogout}
+      />
 
       <StatusBar style={isAuthScreen ? 'light' : 'dark'} />
     </>

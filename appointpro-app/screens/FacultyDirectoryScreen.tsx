@@ -15,7 +15,7 @@ import FacultyBottomTabBar, { FacultyTabKey } from '../components/FacultyBottomT
 type AppointmentStatus = 'upcoming' | 'completed' | 'cancelled';
 type ConsultationMode = 'face-to-face' | 'online';
 
-type StudentAppointment = {
+export type StudentAppointment = {
   id: string;
   studentName: string;
   status: AppointmentStatus;
@@ -26,6 +26,10 @@ type StudentAppointment = {
   mode: ConsultationMode;
   photoUri?: string;
   isOnline: boolean;
+  studentId?: string;
+  email?: string;
+  department?: string;
+  yearLevel?: string;
 };
 
 const APPOINTMENTS: StudentAppointment[] = [
@@ -39,6 +43,10 @@ const APPOINTMENTS: StudentAppointment[] = [
     room: 'Room 305',
     mode: 'face-to-face',
     isOnline: true,
+    studentId: '2023-00456',
+    email: 'mclara@gmail.com',
+    department: 'College of Computer Studies',
+    yearLevel: '2nd Year',
   },
   {
     id: '2',
@@ -49,6 +57,10 @@ const APPOINTMENTS: StudentAppointment[] = [
     category: 'Project Discussion',
     mode: 'online',
     isOnline: true,
+    studentId: '2023-00789',
+    email: 'johndoe@gmail.com',
+    department: 'College of Computer Studies',
+    yearLevel: '4th Year',
   },
   {
     id: '3',
@@ -60,6 +72,10 @@ const APPOINTMENTS: StudentAppointment[] = [
     room: 'Room 310',
     mode: 'face-to-face',
     isOnline: true,
+    studentId: '2023-01011',
+    email: 'areyes@gmail.com',
+    department: 'College of Computer Studies',
+    yearLevel: '4th Year',
   },
   {
     id: '4',
@@ -71,6 +87,10 @@ const APPOINTMENTS: StudentAppointment[] = [
     room: 'Room 305',
     mode: 'face-to-face',
     isOnline: true,
+    studentId: '2023-01234',
+    email: 'msantos@gmail.com',
+    department: 'College of Computer Studies',
+    yearLevel: '1st Year',
   },
 ];
 

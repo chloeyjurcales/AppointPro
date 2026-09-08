@@ -1,0 +1,589 @@
+/*
+  Colors match LoginPage.css / FacultySignUpPage.css so the home screen
+  is visually consistent with the rest of the auth flow.
+    primary   #7A0E2C   primaryDark #5C0A21
+    textDark  #1A1A1A   textMuted   #6B7280
+    border    #E5E7EB   bg          #F7F5F6
+    upcoming  #B3153A / #FBE3E9
+    completed #1F9D55 / #E4F6EB
+    cancelled #9CA3AF / #F1F1F2
+*/
+
+* {
+  box-sizing: border-box;
+}
+
+.db-page {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  display: flex;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  background: #f7f5f6;
+  overflow: hidden;
+}
+
+/* ---------- Sidebar ---------- */
+
+.db-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #7a0e2c 0%, #5c0a21 100%);
+  color: #ffffff;
+  padding: 20px 14px;
+}
+
+.db-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 6px 10px 22px;
+}
+
+.db-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.db-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 11px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.db-nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.db-nav-item-active {
+  background: #ffffff;
+  color: #7a0e2c;
+}
+
+.db-nav-item span:first-of-type {
+  flex: 1;
+}
+
+.db-nav-badge {
+  background: #ffffff;
+  color: #7a0e2c;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+.db-nav-item-active .db-nav-badge {
+  background: #7a0e2c;
+  color: #ffffff;
+}
+
+.db-sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.db-sidebar-profile {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  color: #ffffff;
+  text-align: left;
+}
+
+.db-sidebar-profile:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.db-sidebar-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #7a0e2c;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.db-sidebar-profile-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.db-sidebar-profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-sidebar-profile-role {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ---------- Body (topbar + main) ---------- */
+
+.db-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.db-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 28px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.db-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f4f3f5;
+  border-radius: 10px;
+  padding: 0 14px;
+  height: 40px;
+  width: min(360px, 40vw);
+  color: #6b7280;
+}
+
+.db-search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13.5px;
+  width: 100%;
+  color: #1a1a1a;
+}
+
+.db-topbar-icons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.db-icon-btn {
+  position: relative;
+  border: none;
+  background: none;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+}
+
+.db-icon-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d93025;
+  border: 1.5px solid #ffffff;
+}
+
+.db-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e9c7ce;
+  color: #7a0e2c;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- Main content ---------- */
+
+.db-main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  gap: 24px;
+  padding: 24px 28px 40px;
+}
+
+.db-main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.db-welcome h1 {
+  margin: 0 0 4px;
+  font-size: clamp(20px, 2.6vw, 24px);
+  color: #1a1a1a;
+}
+
+.db-welcome p {
+  margin: 0;
+  font-size: 13.5px;
+  color: #6b7280;
+}
+
+/* ---------- Stats ---------- */
+
+.db-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.db-stat-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.db-stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #e9c7ce;
+  color: #7a0e2c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.db-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.db-stat-label {
+  font-size: 12.5px;
+  color: #6b7280;
+}
+
+/* ---------- Today's schedule ---------- */
+
+.db-schedule-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.db-schedule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.db-schedule-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: #1a1a1a;
+}
+
+.db-view-all {
+  border: none;
+  background: none;
+  color: #b3153a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.db-schedule-empty {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 13.5px;
+  color: #6b7280;
+}
+
+.db-schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.db-schedule-item {
+  display: grid;
+  grid-template-columns: minmax(140px, 160px) 1fr minmax(120px, 160px) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #f0eef0;
+  font-size: 13.5px;
+}
+
+.db-schedule-item:first-child {
+  border-top: none;
+}
+
+.db-schedule-time {
+  color: #6b7280;
+}
+
+.db-schedule-name {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.db-schedule-type {
+  color: #6b7280;
+}
+
+.db-status-badge {
+  justify-self: end;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.db-status-upcoming {
+  background: #fbe3e9;
+  color: #b3153a;
+}
+
+.db-status-completed {
+  background: #e4f6eb;
+  color: #1f9d55;
+}
+
+.db-status-cancelled {
+  background: #f1f1f2;
+  color: #6b7280;
+}
+
+/* ---------- Placeholder (nav sections not built yet) ---------- */
+
+.db-placeholder {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.db-placeholder h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: #1a1a1a;
+}
+
+.db-placeholder p {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+
+
+/* ---------- Right rail ---------- */
+
+.db-right-rail {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.db-calendar-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px 18px 14px;
+}
+
+.db-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.db-calendar-header button {
+  border: none;
+  background: #f4f3f5;
+  color: #6b7280;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.db-calendar-header button:hover {
+  background: #e9c7ce;
+  color: #7a0e2c;
+}
+
+.db-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 6px;
+}
+
+.db-calendar-weekdays span {
+  text-align: center;
+  font-size: 11px;
+  color: #9b9b9b;
+  font-weight: 600;
+}
+
+.db-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 6px;
+}
+
+.db-calendar-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: 0 auto;
+  border-radius: 50%;
+  font-size: 12.5px;
+  color: #1a1a1a;
+}
+
+.db-calendar-day-muted {
+  color: #cfcdd0;
+}
+
+.db-calendar-day-today {
+  background: #7a0e2c;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.db-quote-card {
+  background: #fbe3e9;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #7a0e2c;
+}
+
+.db-quote-card p {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1080px) {
+  .db-main {
+    flex-direction: column;
+  }
+
+  .db-right-rail {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .db-calendar-card,
+  .db-quote-card {
+    flex: 1;
+    min-width: 260px;
+  }
+}
+
+@media (max-width: 760px) {
+  .db-sidebar {
+    width: 76px;
+  }
+
+  .db-sidebar-brand span,
+  .db-nav-item span:first-of-type,
+  .db-sidebar-profile-text {
+    display: none;
+  }
+
+  .db-nav-item {
+    justify-content: center;
+  }
+
+  .db-sidebar-profile {
+    justify-content: center;
+  }
+
+  .db-schedule-item {
+    grid-template-columns: 1fr;
+    row-gap: 4px;
+  }
+
+  .db-status-badge {
+    justify-self: start;
+  }
+}
