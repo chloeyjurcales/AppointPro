@@ -9,64 +9,6 @@
   animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
 }
 
-/* ---------- Profile header ---------- */
-
-.fv-profile-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--surface-card, #ffffff);
-  border: 1px solid var(--surface-border, #e5e7eb);
-  border-radius: var(--radius-lg, 14px);
-  padding: 20px 22px;
-  box-shadow: var(--shadow-xs, 0 1px 2px rgba(26, 15, 20, 0.05));
-}
-
-.fv-avatar {
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: var(--brand-gradient, linear-gradient(155deg, #8a1433 0%, #5c0a21 100%));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
-}
-
-.fv-header-text h1 {
-  margin: 0 0 2px;
-  font-size: 17px;
-  color: var(--text-primary, #1a1a1a);
-}
-
-.fv-header-text p {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--text-secondary, #6b7280);
-}
-
-.fv-active-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 8px;
-  background: var(--color-success-bg, #e4f6eb);
-  color: var(--color-success, #1f9d55);
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill, 999px);
-}
-
-.fv-active-badge::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
 /* ---------- Tabs ---------- */
 
 .fv-tabs {
@@ -833,6 +775,438 @@
   background: var(--brand-600, #5c0a21);
 }
 
+/* ---------- Appointments tab (list / cancel / success) ---------- */
+
+.fv-appt-list-card {
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+.fv-appt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fv-appt-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-md, 12px);
+  padding: 14px 16px;
+  transition: border-color var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    box-shadow var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-row:hover {
+  border-color: var(--brand-200, #f6d0da);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(26, 15, 20, 0.05));
+}
+
+.fv-appt-row-main {
+  min-width: 0;
+}
+
+.fv-appt-row-name {
+  margin: 0 0 2px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-appt-row-detail {
+  margin: 0 0 2px;
+  font-size: 12.5px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-appt-row-muted {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-tertiary, #9b9b9b);
+}
+
+.fv-appt-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fv-appt-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill, 999px);
+  white-space: nowrap;
+}
+
+.fv-appt-status-upcoming {
+  background: var(--brand-100, #fbe3e9);
+  color: var(--brand-400, #b3153a);
+}
+
+.fv-appt-status-cancelled {
+  background: var(--gray-150, #f1f1f2);
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-appt-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.fv-appt-reschedule-btn,
+.fv-appt-cancel-btn {
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    color var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-reschedule-btn {
+  background: var(--surface-muted, #f4f3f5);
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-appt-reschedule-btn:hover {
+  background: var(--gray-150, #eeecee);
+}
+
+.fv-appt-cancel-btn {
+  background: var(--color-danger-bg, #fdeceb);
+  color: var(--color-danger, #d93025);
+}
+
+.fv-appt-cancel-btn:hover {
+  background: var(--color-danger, #d93025);
+  color: #ffffff;
+}
+
+/* ---------- Cancel confirmation ---------- */
+
+.fv-appt-cancel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+.fv-appt-summary {
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-md, 12px);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.fv-appt-summary-name {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-appt-summary-line {
+  margin: 0 0 2px;
+  font-size: 12.5px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-appt-summary-muted {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-appt-summary-reason {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-primary, #1a1a1a);
+  font-weight: 600;
+}
+
+.fv-appt-reason-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+  margin-bottom: 8px;
+}
+
+.fv-appt-reason-input {
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-md, 10px);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary, #1a1a1a);
+  outline: none;
+  margin-bottom: 16px;
+  transition: border-color var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    box-shadow var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-reason-input::placeholder {
+  color: #9b9b9b;
+}
+
+.fv-appt-reason-input:focus {
+  border-color: var(--brand-500, #7a0e2c);
+  box-shadow: var(--ring-focus, 0 0 0 3px rgba(122, 14, 44, 0.16));
+}
+
+.fv-appt-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--color-info-bg, #e3edfb);
+  color: var(--color-info, #2563eb);
+  border-radius: var(--radius-md, 10px);
+  padding: 12px 14px;
+  margin-bottom: 20px;
+}
+
+.fv-appt-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.fv-appt-warning p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fv-appt-cancel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fv-appt-cancel-confirm {
+  height: 46px;
+  border: none;
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-danger, #d93025);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    opacity var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-cancel-confirm:hover:not(:disabled) {
+  background: #b8281f;
+}
+
+.fv-appt-cancel-confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.fv-appt-cancel-keep {
+  height: 46px;
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-card, #ffffff);
+  color: var(--text-primary, #1a1a1a);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-cancel-keep:hover {
+  background: var(--surface-muted, #f4f3f5);
+}
+
+/* ---------- Cancel success ---------- */
+
+.fv-appt-success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  animation: theme-pop var(--duration-slow, 0.35s) var(--ease-standard, ease) both;
+}
+
+.fv-appt-success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--brand-500, #7a0e2c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
+}
+
+.fv-appt-success-icon-positive {
+  background: var(--color-success, #1f9d55);
+  box-shadow: 0 10px 24px rgba(31, 157, 85, 0.24);
+}
+
+.fv-appt-success-subtitle {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-appt-summary-bordered {
+  width: 100%;
+  background: var(--surface-muted, #f7f5f6);
+}
+
+.fv-appt-back-button {
+  margin-top: 20px;
+  width: 100%;
+  height: 46px;
+  border: none;
+  border-radius: var(--radius-md, 10px);
+  background: var(--brand-500, #7a0e2c);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-back-button:hover {
+  background: var(--brand-600, #5c0a21);
+  transform: translateY(-1px);
+}
+
+/* ---------- Reschedule flow ---------- */
+
+.fv-appt-reschedule-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+.fv-appt-subheading {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-day-chip-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.fv-appt-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.fv-appt-slot-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-md, 12px);
+  padding: 12px 14px;
+  background: var(--surface-card, #ffffff);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-slot-card:hover {
+  border-color: var(--brand-300, #e9c7ce);
+}
+
+.fv-appt-slot-card-selected {
+  border-color: var(--brand-500, #7a0e2c);
+  background: var(--brand-50, #fdf1f4);
+}
+
+.fv-appt-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--surface-border-strong, #d1d5db);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-radio-active {
+  border-color: var(--brand-500, #7a0e2c);
+}
+
+.fv-appt-radio-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--brand-500, #7a0e2c);
+}
+
+.fv-appt-slot-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fv-appt-slot-time {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-appt-slot-location {
+  font-size: 11.5px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-appt-reschedule-confirm {
+  height: 46px;
+  border: none;
+  border-radius: var(--radius-md, 10px);
+  background: var(--brand-500, #7a0e2c);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    opacity var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-appt-reschedule-confirm:hover:not(:disabled) {
+  background: var(--brand-600, #5c0a21);
+}
+
+.fv-appt-reschedule-confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 640px) {
@@ -842,5 +1216,23 @@
 
   .fv-day-chip {
     width: 40px;
+  }
+
+  .fv-appt-row {
+    flex-direction: column;
+  }
+
+  .fv-appt-row-side {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .fv-appt-row-actions {
+    width: 100%;
+  }
+
+  .fv-appt-reschedule-btn,
+  .fv-appt-cancel-btn {
+    flex: 1;
   }
 }

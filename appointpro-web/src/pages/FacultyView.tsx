@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import './FacultyView.css';
 
 type FacultyTab = 'profile' | 'schedule' | 'appointments' | 'settings';
@@ -30,6 +30,19 @@ type RecurringSchedule = {
   time: string;
   mode: ConsultationMode;
   dateRange: string;
+};
+
+type FacultyAppointmentStatus = 'upcoming' | 'cancelled';
+
+type FacultyAppointment = {
+  id: string;
+  studentName: string;
+  category: string;
+  dateLabel: string;
+  timeLabel: string;
+  location: string;
+  mode: ConsultationMode;
+  status: FacultyAppointmentStatus;
 };
 
 const WEEK_LABELS = [
@@ -106,12 +119,13 @@ const SCHEDULE_ROWS: ScheduleRow[] = [
 ];
 
 const DAY_CHIPS = [
-  { label: 'Sun', date: 6 },
   { label: 'Mon', date: 7 },
-  { label: 'Tue', date: 9 },
-  { label: 'Wed', date: 10 },
+  { label: 'Tue', date: 8 },
+  { label: 'Wed', date: 9 },
+  { label: 'Thu', date: 10 },
   { label: 'Fri', date: 11 },
   { label: 'Sat', date: 12 },
+  { label: 'Sun', date: 13 },
 ];
 
 const INITIAL_RECURRING: RecurringSchedule[] = [
@@ -134,6 +148,100 @@ const INITIAL_SLOTS: TimeSlot[] = [
   },
 ];
 
+const INITIAL_FACULTY_APPOINTMENTS: FacultyAppointment[] = [
+  {
+    id: 'a1',
+    studentName: 'Chloey Lyca Jurcales',
+    category: 'Academic Advising',
+    dateLabel: 'May 13, 2026 (Tue)',
+    timeLabel: '10:00 AM - 10:30 AM',
+    location: 'Room 305, CITE Building',
+    mode: 'Face-to-Face',
+    status: 'upcoming',
+  },
+  {
+    id: 'a2',
+    studentName: 'Miguel Santos',
+    category: 'Thesis Consultation',
+    dateLabel: 'May 14, 2026 (Wed)',
+    timeLabel: '1:00 PM - 1:30 PM',
+    location: 'Google Meet',
+    mode: 'Online',
+    status: 'upcoming',
+  },
+  {
+    id: 'a3',
+    studentName: 'Anna Bautista',
+    category: 'Grade Concern',
+    dateLabel: 'May 15, 2026 (Thu)',
+    timeLabel: '3:00 PM - 3:30 PM',
+    location: 'Room 305, CITE Building',
+    mode: 'Face-to-Face',
+    status: 'upcoming',
+  },
+];
+
+// Parses a range string that uses either an en dash ("8:00 AM – 10:00 AM",
+// used by the fixed schedule rows) or a hyphen ("1:00 PM - 3:00 PM", used by
+// availability slots) into start/end minutes-after-midnight.
+function parseTimeRangeString(range: string): { start: number; end: number } | null {
+  const parts = range.split(/\s[–-]\s/).map((part) => part.trim());
+  if (parts.length !== 2) return null;
+
+  const start = parseTimeInput(parts[0]);
+  const end = parseTimeInput(parts[1]);
+  if (start === null || end === null) return null;
+
+  return { start, end };
+}
+
+function timeRangesOverlap(
+  aStart: number,
+  aEnd: number,
+  bStart: number,
+  bEnd: number,
+) {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+const TIME_ROW_RANGES = SCHEDULE_ROWS.map((row) =>
+  parseTimeRangeString(row.time),
+);
+
+// Faculty availability lives in `daySlots` (keyed by calendar date, matching
+// DAY_CHIPS/WEEK_LABELS). This overlays enabled slots onto the fixed weekly
+// grid so a newly added time slot shows up as "Available" on the Faculty
+// Schedule calendar, without touching cells that already have a class or
+// office hours.
+function buildDisplayRows(daySlots: Record<number, TimeSlot[]>): ScheduleRow[] {
+  return SCHEDULE_ROWS.map((row, rowIndex) => {
+    const range = TIME_ROW_RANGES[rowIndex];
+
+    const cells = row.cells.map((cell, colIndex) => {
+      if (cell.status !== 'unavailable' || !range) return cell;
+
+      const date = colIndex + 7; // colIndex 0 = Mon (date 7) ... 6 = Sun (date 13)
+      const slotsForDay = daySlots[date] ?? [];
+
+      const hasAvailableSlot = slotsForDay.some((slot) => {
+        if (!slot.enabled) return false;
+        const slotRange = parseTimeRangeString(slot.time);
+        if (!slotRange) return false;
+        return timeRangesOverlap(
+          range.start,
+          range.end,
+          slotRange.start,
+          slotRange.end,
+        );
+      });
+
+      return hasAvailableSlot ? { status: 'available' as SlotStatus } : cell;
+    });
+
+    return { time: row.time, cells };
+  });
+}
+
 type FacultyViewProps = {
   facultyName?: string;
   facultyId?: string;
@@ -146,21 +254,12 @@ export default function FacultyView({
   facultyEmail = 'maria.clara@school.edu',
 }: FacultyViewProps) {
   const [activeTab, setActiveTab] = useState<FacultyTab>('profile');
+  const [daySlots, setDaySlots] = useState<Record<number, TimeSlot[]>>({
+    7: INITIAL_SLOTS,
+  });
 
   return (
     <div className="fv-page">
-      <div className="fv-profile-header">
-        <div className="fv-avatar">
-          <UserIcon />
-        </div>
-        <div className="fv-header-text">
-          <h1>{facultyName}</h1>
-          <p>Faculty ID: {facultyId}</p>
-          <p>{facultyEmail}</p>
-          <span className="fv-active-badge">Active</span>
-        </div>
-      </div>
-
       <div className="fv-tabs">
         {(
           [
@@ -189,15 +288,15 @@ export default function FacultyView({
         />
       )}
 
-      {activeTab === 'schedule' && <ScheduleTab />}
+      {activeTab === 'schedule' && <ScheduleTab daySlots={daySlots} />}
 
       {activeTab === 'appointments' && (
-        <div className="fv-placeholder">
-          <p>Appointment history for {facultyName} goes here.</p>
-        </div>
+        <AppointmentsTab facultyName={facultyName} daySlots={daySlots} />
       )}
 
-      {activeTab === 'settings' && <AvailabilityTab />}
+      {activeTab === 'settings' && (
+        <AvailabilityTab daySlots={daySlots} onDaySlotsChange={setDaySlots} />
+      )}
     </div>
   );
 }
@@ -268,7 +367,451 @@ function ProfileTab({
   );
 }
 
-function ScheduleTab() {
+function AppointmentsTab({
+  facultyName,
+  daySlots,
+}: {
+  facultyName: string;
+  daySlots: Record<number, TimeSlot[]>;
+}) {
+  const [appointments, setAppointments] = useState<FacultyAppointment[]>(
+    INITIAL_FACULTY_APPOINTMENTS,
+  );
+  const [view, setView] = useState<
+    'list' | 'cancel' | 'cancel-success' | 'reschedule' | 'reschedule-success'
+  >('list');
+  const [activeAppointmentId, setActiveAppointmentId] = useState<
+    string | null
+  >(null);
+  const [reason, setReason] = useState('');
+  const [lastCancelReason, setLastCancelReason] = useState('');
+
+  const [rescheduleDate, setRescheduleDate] = useState(7);
+  const [rescheduleSlotId, setRescheduleSlotId] = useState<string | null>(
+    null,
+  );
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [lastReschedule, setLastReschedule] = useState<{
+    dateLabel: string;
+    timeLabel: string;
+    location: string;
+    mode: ConsultationMode;
+    reason: string;
+  } | null>(null);
+
+  const activeAppointment =
+    appointments.find((appt) => appt.id === activeAppointmentId) ?? null;
+
+  const openCancel = (id: string) => {
+    setActiveAppointmentId(id);
+    setReason('');
+    setView('cancel');
+  };
+
+  const keepAppointment = () => {
+    setActiveAppointmentId(null);
+    setReason('');
+    setView('list');
+  };
+
+  const confirmCancel = () => {
+    if (!activeAppointmentId || !reason.trim()) return;
+
+    setAppointments((prev) =>
+      prev.map((appt) =>
+        appt.id === activeAppointmentId
+          ? { ...appt, status: 'cancelled' }
+          : appt,
+      ),
+    );
+    setLastCancelReason(reason.trim());
+    setView('cancel-success');
+  };
+
+  const openReschedule = (id: string) => {
+    const firstDateWithSlot =
+      DAY_CHIPS.find((chip) =>
+        (daySlots[chip.date] ?? []).some((slot) => slot.enabled),
+      )?.date ?? DAY_CHIPS[0].date;
+
+    setActiveAppointmentId(id);
+    setRescheduleDate(firstDateWithSlot);
+    setRescheduleSlotId(null);
+    setRescheduleReason('');
+    setView('reschedule');
+  };
+
+  const cancelReschedule = () => {
+    setActiveAppointmentId(null);
+    setRescheduleSlotId(null);
+    setRescheduleReason('');
+    setView('list');
+  };
+
+  const rescheduleSlotsForDate = (daySlots[rescheduleDate] ?? []).filter(
+    (slot) => slot.enabled,
+  );
+  const selectedRescheduleSlot =
+    rescheduleSlotsForDate.find((slot) => slot.id === rescheduleSlotId) ??
+    null;
+  const canConfirmReschedule =
+    rescheduleReason.trim().length > 0 && !!selectedRescheduleSlot;
+
+  const confirmReschedule = () => {
+    if (!activeAppointmentId || !selectedRescheduleSlot || !canConfirmReschedule)
+      return;
+
+    const dayChip = DAY_CHIPS.find((chip) => chip.date === rescheduleDate);
+    const weekLabel = WEEK_LABELS[rescheduleDate - 7];
+    const [, monthDay] = weekLabel ? weekLabel.split('\n') : [undefined, ''];
+    const newDateLabel = `${monthDay}, 2026 (${dayChip?.label ?? ''})`;
+
+    setAppointments((prev) =>
+      prev.map((appt) =>
+        appt.id === activeAppointmentId
+          ? {
+              ...appt,
+              dateLabel: newDateLabel,
+              timeLabel: selectedRescheduleSlot.time,
+              location: selectedRescheduleSlot.location,
+              mode: selectedRescheduleSlot.mode,
+            }
+          : appt,
+      ),
+    );
+
+    setLastReschedule({
+      dateLabel: newDateLabel,
+      timeLabel: selectedRescheduleSlot.time,
+      location: selectedRescheduleSlot.location,
+      mode: selectedRescheduleSlot.mode,
+      reason: rescheduleReason.trim(),
+    });
+    setView('reschedule-success');
+  };
+
+  const backToAppointments = () => {
+    setActiveAppointmentId(null);
+    setReason('');
+    setRescheduleSlotId(null);
+    setRescheduleReason('');
+    setView('list');
+  };
+
+  if (view === 'cancel' && activeAppointment) {
+    const canCancel = reason.trim().length > 0;
+
+    return (
+      <div className="fv-card fv-appt-cancel-card">
+        <h2>Cancel Appointment</h2>
+
+        <div className="fv-appt-summary">
+          <p className="fv-appt-summary-name">
+            {activeAppointment.studentName}
+          </p>
+          <p className="fv-appt-summary-line">
+            {activeAppointment.dateLabel} · {activeAppointment.timeLabel}
+          </p>
+          <p className="fv-appt-summary-muted">
+            {activeAppointment.location}
+          </p>
+          <p className="fv-appt-summary-muted">{activeAppointment.mode}</p>
+        </div>
+
+        <label className="fv-appt-reason-label" htmlFor="cancel-reason">
+          Reason for Cancellation
+        </label>
+        <textarea
+          id="cancel-reason"
+          className="fv-appt-reason-input"
+          placeholder="e.g. Emergency, unavailability..."
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          rows={4}
+        />
+
+        <div className="fv-appt-warning">
+          <AlertIcon />
+          <p>
+            The student will be notified immediately once this appointment
+            is cancelled.
+          </p>
+        </div>
+
+        <div className="fv-appt-cancel-actions">
+          <button
+            type="button"
+            className="fv-appt-cancel-confirm"
+            disabled={!canCancel}
+            onClick={confirmCancel}
+          >
+            Cancel Appointment
+          </button>
+          <button
+            type="button"
+            className="fv-appt-cancel-keep"
+            onClick={keepAppointment}
+          >
+            Keep Appointment
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'cancel-success' && activeAppointment) {
+    return (
+      <div className="fv-card fv-appt-success-card">
+        <div className="fv-appt-success-icon">
+          <XIcon />
+        </div>
+        <h2>Appointment Canceled!</h2>
+        <p className="fv-appt-success-subtitle">
+          The appointment has been successfully canceled.
+        </p>
+
+        <div className="fv-appt-summary fv-appt-summary-bordered">
+          <p className="fv-appt-summary-name">
+            {activeAppointment.studentName}
+          </p>
+          <p className="fv-appt-summary-muted">{activeAppointment.category}</p>
+          <p className="fv-appt-summary-line">
+            {activeAppointment.dateLabel} · {activeAppointment.timeLabel}
+          </p>
+          <p className="fv-appt-summary-muted">
+            {activeAppointment.location} · {activeAppointment.mode}
+          </p>
+          <p className="fv-appt-summary-reason">
+            Reason: {lastCancelReason}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="fv-appt-back-button"
+          onClick={backToAppointments}
+        >
+          Back to Appointments
+        </button>
+      </div>
+    );
+  }
+
+  if (view === 'reschedule' && activeAppointment) {
+    return (
+      <div className="fv-card fv-appt-reschedule-card">
+        <h2>Reschedule Appointment</h2>
+
+        <div className="fv-appt-summary">
+          <p className="fv-appt-summary-name">
+            {activeAppointment.studentName}
+          </p>
+          <p className="fv-appt-summary-muted">{activeAppointment.category}</p>
+        </div>
+
+        <p className="fv-appt-subheading">Current Schedule</p>
+        <div className="fv-appt-summary">
+          <p className="fv-appt-summary-line">
+            {activeAppointment.dateLabel} · {activeAppointment.timeLabel}
+          </p>
+          <p className="fv-appt-summary-muted">
+            {activeAppointment.location}
+          </p>
+          <p className="fv-appt-summary-muted">{activeAppointment.mode}</p>
+        </div>
+
+        <label className="fv-appt-reason-label" htmlFor="reschedule-reason">
+          Reason for Reschedule
+        </label>
+        <textarea
+          id="reschedule-reason"
+          className="fv-appt-reason-input"
+          placeholder="e.g. Emergency meeting, schedule conflict..."
+          value={rescheduleReason}
+          onChange={(event) => setRescheduleReason(event.target.value)}
+          rows={3}
+        />
+
+        <p className="fv-appt-subheading">Select New Date</p>
+        <div className="fv-day-chips">
+          {DAY_CHIPS.map((chip) => {
+            const hasFit = (daySlots[chip.date] ?? []).some(
+              (slot) => slot.enabled,
+            );
+
+            return (
+              <button
+                key={chip.date}
+                type="button"
+                className={`fv-day-chip${
+                  rescheduleDate === chip.date ? ' fv-day-chip-active' : ''
+                }${!hasFit ? ' fv-day-chip-disabled' : ''}`}
+                disabled={!hasFit}
+                onClick={() => {
+                  setRescheduleDate(chip.date);
+                  setRescheduleSlotId(null);
+                }}
+              >
+                <span className="fv-day-chip-label">{chip.label}</span>
+                <span className="fv-day-chip-date">{chip.date}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="fv-appt-subheading">Select New Time</p>
+        {rescheduleSlotsForDate.length === 0 ? (
+          <p className="fv-empty-slots">No available slots on this day.</p>
+        ) : (
+          <div className="fv-appt-slot-list">
+            {rescheduleSlotsForDate.map((slot) => {
+              const isSelected = slot.id === rescheduleSlotId;
+
+              return (
+                <button
+                  type="button"
+                  key={slot.id}
+                  className={`fv-appt-slot-card${
+                    isSelected ? ' fv-appt-slot-card-selected' : ''
+                  }`}
+                  onClick={() => setRescheduleSlotId(slot.id)}
+                >
+                  <span
+                    className={`fv-appt-radio${
+                      isSelected ? ' fv-appt-radio-active' : ''
+                    }`}
+                  >
+                    {isSelected && <span className="fv-appt-radio-dot" />}
+                  </span>
+                  <span className="fv-appt-slot-text">
+                    <span className="fv-appt-slot-time">{slot.time}</span>
+                    <span className="fv-appt-slot-location">
+                      {slot.mode} · {slot.location}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="fv-appt-cancel-actions">
+          <button
+            type="button"
+            className="fv-appt-reschedule-confirm"
+            disabled={!canConfirmReschedule}
+            onClick={confirmReschedule}
+          >
+            Confirm Reschedule
+          </button>
+          <button
+            type="button"
+            className="fv-appt-cancel-keep"
+            onClick={cancelReschedule}
+          >
+            Back to Appointments
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'reschedule-success' && activeAppointment && lastReschedule) {
+    return (
+      <div className="fv-card fv-appt-success-card">
+        <div className="fv-appt-success-icon fv-appt-success-icon-positive">
+          <CheckIcon />
+        </div>
+        <h2>Appointment Rescheduled!</h2>
+        <p className="fv-appt-success-subtitle">
+          The appointment has been successfully rescheduled.
+        </p>
+
+        <div className="fv-appt-summary fv-appt-summary-bordered">
+          <p className="fv-appt-summary-name">
+            {activeAppointment.studentName}
+          </p>
+          <p className="fv-appt-summary-muted">{activeAppointment.category}</p>
+          <p className="fv-appt-summary-line">
+            {lastReschedule.dateLabel} · {lastReschedule.timeLabel}
+          </p>
+          <p className="fv-appt-summary-muted">
+            {lastReschedule.location} · {lastReschedule.mode}
+          </p>
+          <p className="fv-appt-summary-reason">
+            Reason: {lastReschedule.reason}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="fv-appt-back-button"
+          onClick={backToAppointments}
+        >
+          Back to Appointments
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fv-card fv-appt-list-card">
+      <h2>Appointments for {facultyName}</h2>
+
+      {appointments.length === 0 ? (
+        <p className="fv-empty-slots">No appointments scheduled.</p>
+      ) : (
+        <div className="fv-appt-list">
+          {appointments.map((appt) => (
+            <div key={appt.id} className="fv-appt-row">
+              <div className="fv-appt-row-main">
+                <p className="fv-appt-row-name">{appt.studentName}</p>
+                <p className="fv-appt-row-detail">{appt.category}</p>
+                <p className="fv-appt-row-detail">
+                  {appt.dateLabel} · {appt.timeLabel}
+                </p>
+                <p className="fv-appt-row-muted">
+                  {appt.location} · {appt.mode}
+                </p>
+              </div>
+
+              <div className="fv-appt-row-side">
+                <span
+                  className={`fv-appt-status fv-appt-status-${appt.status}`}
+                >
+                  {appt.status === 'upcoming' ? 'Upcoming' : 'Cancelled'}
+                </span>
+
+                {appt.status === 'upcoming' && (
+                  <div className="fv-appt-row-actions">
+                    <button
+                      type="button"
+                      className="fv-appt-reschedule-btn"
+                      onClick={() => openReschedule(appt.id)}
+                    >
+                      Reschedule
+                    </button>
+                    <button
+                      type="button"
+                      className="fv-appt-cancel-btn"
+                      onClick={() => openCancel(appt.id)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScheduleTab({ daySlots }: { daySlots: Record<number, TimeSlot[]> }) {
+  const displayRows = useMemo(() => buildDisplayRows(daySlots), [daySlots]);
+
   return (
     <div className="fv-card fv-schedule-card">
       <div className="fv-schedule-header">
@@ -302,7 +845,7 @@ function ScheduleTab() {
             </tr>
           </thead>
           <tbody>
-            {SCHEDULE_ROWS.map((row) => (
+            {displayRows.map((row) => (
               <tr key={row.time}>
                 <td className="fv-schedule-time">{row.time}</td>
                 {row.cells.map((cell, index) => (
@@ -412,10 +955,26 @@ function formatTime(minutesAfterMidnight: number): string {
   return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
 }
 
-function AvailabilityTab() {
+function AvailabilityTab({
+  daySlots,
+  onDaySlotsChange,
+}: {
+  daySlots: Record<number, TimeSlot[]>;
+  onDaySlotsChange: (
+    updater: (prev: Record<number, TimeSlot[]>) => Record<number, TimeSlot[]>,
+  ) => void;
+}) {
   const [recurring] = useState<RecurringSchedule[]>(INITIAL_RECURRING);
-  const [slots, setSlots] = useState<TimeSlot[]>(INITIAL_SLOTS);
   const [selectedDate, setSelectedDate] = useState(7);
+
+  const slots = daySlots[selectedDate] ?? [];
+
+  const setSlots = (updater: (prev: TimeSlot[]) => TimeSlot[]) => {
+    onDaySlotsChange((prev) => ({
+      ...prev,
+      [selectedDate]: updater(prev[selectedDate] ?? []),
+    }));
+  };
 
   const [isAddingSlot, setIsAddingSlot] = useState(false);
   const [newSlotStart, setNewSlotStart] = useState('');
@@ -733,20 +1292,6 @@ function AvailabilityTab() {
   );
 }
 
-function UserIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="8" r="4" stroke="#ffffff" strokeWidth="1.7" />
-      <path
-        d="M4 20c1-4 4.5-6 8-6s7 2 8 6"
-        stroke="#ffffff"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function EditIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
@@ -878,6 +1423,48 @@ function ChevronRightIcon() {
         d="M9 6l6 6-6 6"
         stroke="currentColor"
         strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M12 7.5v5.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="16.3" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M6 6l12 12M18 6L6 18"
+        stroke="#ffffff"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M5 12.5l4.5 4.5L19 7"
+        stroke="#ffffff"
+        strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
