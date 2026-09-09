@@ -78,9 +78,7 @@ const STATUS_STYLES: Record<AppointmentStatus, StatusStyle> = {
 };
 
 function matchesFilter(appointment: Appointment, filter: FilterKey) {
-  if (filter === 'upcoming') return appointment.status === 'upcoming';
-  if (filter === 'canceled') return appointment.status === 'canceled';
-  return appointment.status === 'completed' || appointment.status === 'canceled';
+  return appointment.status === filter;
 }
 
 function EmptySpaceIllustration() {

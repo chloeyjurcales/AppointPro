@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -44,6 +44,7 @@ type FacultyHomeScreenProps = {
   onNotificationsPress?: () => void;
   onViewSchedule?: () => void;
   onOpenAppointments?: () => void;
+  onOpenPendingReschedules?: () => void;
   onOpenAvailability?: () => void;
   onOpenWalkInQueue?: () => void;
   onOpenSlotIQAI?: () => void;
@@ -59,16 +60,35 @@ export default function FacultyHomeScreen({
   onNotificationsPress,
   onViewSchedule,
   onOpenAppointments,
+  onOpenPendingReschedules,
   onOpenAvailability,
   onOpenWalkInQueue,
   onOpenSlotIQAI,
   onTabChange,
 }: FacultyHomeScreenProps) {
+  // SlotIQ AI isn't built yet — pressing it shows a brief "not available"
+  // toast instead of navigating anywhere.
+  const [showSlotIQNotice, setShowSlotIQNotice] = useState(false);
+  const slotIQNoticeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (slotIQNoticeTimeout.current) clearTimeout(slotIQNoticeTimeout.current);
+    };
+  }, []);
+
+  const handleSlotIQPress = () => {
+    setShowSlotIQNotice(true);
+    if (slotIQNoticeTimeout.current) clearTimeout(slotIQNoticeTimeout.current);
+    slotIQNoticeTimeout.current = setTimeout(() => setShowSlotIQNotice(false), 2500);
+    onOpenSlotIQAI?.();
+  };
+
   const quickActions: QuickAction[] = [
     { key: 'appointments', label: 'Appointments', icon: 'calendar-outline', background: '#5B7FDE', onPress: onOpenAppointments },
     { key: 'availability', label: 'Availability', icon: 'checkmark-circle-outline', background: '#3FB68A', onPress: onOpenAvailability },
     { key: 'queue', label: 'Queue', icon: 'notifications-outline', background: '#F0C93A', onPress: onOpenWalkInQueue },
-    { key: 'slotiq', label: 'SlotIQ AI', icon: 'sparkles-outline', background: '#9B5DE5', onPress: onOpenSlotIQAI },
+    { key: 'slotiq', label: 'SlotIQ AI', icon: 'sparkles-outline', background: '#9B5DE5', onPress: handleSlotIQPress },
   ];
 
   return (
@@ -92,18 +112,30 @@ export default function FacultyHomeScreen({
         <Text style={styles.sectionTitle}>Today's Overview</Text>
 
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={onOpenAppointments}
+            activeOpacity={0.75}
+          >
             <Text style={[styles.statNumber, { color: colors.success }]}>{appointmentsCount}</Text>
             <Text style={styles.statLabel}>Appointments</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={onOpenPendingReschedules}
+            activeOpacity={0.75}
+          >
             <Text style={[styles.statNumber, { color: colors.primary }]}>{pendingReschedulesCount}</Text>
             <Text style={styles.statLabel}>Pending{'\n'}Reschedules</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={onOpenWalkInQueue}
+            activeOpacity={0.75}
+          >
             <Text style={[styles.statNumber, { color: '#3B4A9E' }]}>{walkInQueueCount}</Text>
             <Text style={styles.statLabel}>In{'\n'}Queue</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.sectionHeaderRow}>
@@ -160,6 +192,14 @@ export default function FacultyHomeScreen({
       </ScrollView>
 
       <FacultyBottomTabBar active="home" onChange={onTabChange} />
+
+      {showSlotIQNotice && (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>Currently not available</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -323,5 +363,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textDark,
     textAlign: 'center',
+  },
+  toastWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 90,
+    alignItems: 'center',
+  },
+  toast: {
+    backgroundColor: '#1A1A1A',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  toastText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

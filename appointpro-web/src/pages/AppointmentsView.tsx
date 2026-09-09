@@ -14,8 +14,6 @@ type Appointment = {
 
 type TabId = 'all' | 'upcoming' | 'completed' | 'cancelled';
 
-// Placeholder data — replace with real Supabase queries once the
-// appointments table exists (same convention as Dashboard.tsx).
 const APPOINTMENTS: Appointment[] = [
   {
     id: '1',
@@ -84,8 +82,6 @@ export default function AppointmentsView() {
       ? APPOINTMENTS
       : APPOINTMENTS.filter((a) => a.status.toLowerCase() === activeTab);
 
-  // These actions have no backend wired up yet — swap the alerts for real
-  // handlers (open a modal, call Supabase, etc.) once that's ready.
   const handleNewAppointment = () => {
     window.alert('The new-appointment form is not built yet.');
   };
@@ -109,7 +105,12 @@ export default function AppointmentsView() {
           <h1>Appointments</h1>
           <p>View and manage your appointments.</p>
         </div>
-        <button type="button" className="av-new-btn" onClick={handleNewAppointment}>
+
+        <button
+          type="button"
+          className="av-new-btn"
+          onClick={handleNewAppointment}
+        >
           <PlusIcon />
           New Appointment
         </button>
@@ -120,7 +121,9 @@ export default function AppointmentsView() {
           <button
             key={tab.id}
             type="button"
-            className={`av-tab${activeTab === tab.id ? ' av-tab-active' : ''}`}
+            className={`av-tab${
+              activeTab === tab.id ? ' av-tab-active' : ''
+            }`}
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label} ({tab.count})
@@ -139,6 +142,7 @@ export default function AppointmentsView() {
               <th>Actions</th>
             </tr>
           </thead>
+
           <tbody>
             {filtered.map((appt) => (
               <tr key={appt.id}>
@@ -148,8 +152,15 @@ export default function AppointmentsView() {
                     <span className="av-time">{appt.time}</span>
                   </div>
                 </td>
-                <td className="av-student">{appt.studentName}</td>
-                <td className="av-reason">{appt.reason}</td>
+
+                <td className="av-student">
+                  {appt.studentName}
+                </td>
+
+                <td className="av-reason">
+                  {appt.reason}
+                </td>
+
                 <td>
                   <span
                     className={`av-status av-status-${appt.status.toLowerCase()}`}
@@ -157,6 +168,7 @@ export default function AppointmentsView() {
                     {appt.status}
                   </span>
                 </td>
+
                 <td>
                   <div className="av-actions">
                     <button
@@ -167,6 +179,7 @@ export default function AppointmentsView() {
                     >
                       <EditIcon />
                     </button>
+
                     <button
                       type="button"
                       className="av-action-btn"
@@ -175,6 +188,7 @@ export default function AppointmentsView() {
                     >
                       <DeleteIcon />
                     </button>
+
                     <button
                       type="button"
                       className="av-action-btn"
@@ -192,12 +206,17 @@ export default function AppointmentsView() {
               <tr>
                 <td colSpan={5} className="av-empty">
                   <div className="av-empty-inner">
-                    <span className="av-empty-icon" aria-hidden="true">
+                    <span
+                      className="av-empty-icon"
+                      aria-hidden="true"
+                    >
                       <CalendarEmptyIcon />
                     </span>
+
                     <span className="av-empty-title">
                       No appointments in this category
                     </span>
+
                     <span className="av-empty-subtitle">
                       New bookings will show up here as students schedule
                       them.
@@ -217,9 +236,6 @@ export default function AppointmentsView() {
     </div>
   );
 }
-
-/* Small inline icons so this component has zero extra icon-library
-   dependencies (same convention as Dashboard.tsx / LoginPage.tsx). */
 
 function PlusIcon() {
   return (
@@ -243,6 +259,7 @@ function EditIcon() {
         strokeWidth="1.7"
         strokeLinecap="round"
       />
+
       <path
         d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"
         stroke="currentColor"
@@ -264,6 +281,7 @@ function DeleteIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+
       <path
         d="M10 11v6M14 11v6"
         stroke="currentColor"
@@ -286,12 +304,14 @@ function CalendarEmptyIcon() {
         stroke="currentColor"
         strokeWidth="1.6"
       />
+
       <path
         d="M3.5 9.5h17M8 3.5v4M16 3.5v4"
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
       />
+
       <path
         d="M9 14.5h6"
         stroke="currentColor"
@@ -305,9 +325,26 @@ function CalendarEmptyIcon() {
 function MoreIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="5" r="1.6" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-      <circle cx="12" cy="19" r="1.6" fill="currentColor" />
+      <circle
+        cx="12"
+        cy="5"
+        r="1.6"
+        fill="currentColor"
+      />
+
+      <circle
+        cx="12"
+        cy="12"
+        r="1.6"
+        fill="currentColor"
+      />
+
+      <circle
+        cx="12"
+        cy="19"
+        r="1.6"
+        fill="currentColor"
+      />
     </svg>
   );
 }

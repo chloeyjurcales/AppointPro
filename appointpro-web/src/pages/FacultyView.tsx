@@ -57,7 +57,19 @@ const WEEK_LABELS = [
 
 const SCHEDULE_ROWS: ScheduleRow[] = [
   {
-    time: '8:00 AM – 10:00 AM',
+    time: '7:00 AM – 8:00 AM',
+    cells: [
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '8:00 AM – 9:00 AM',
     cells: [
       { status: 'available' },
       { status: 'unavailable' },
@@ -69,7 +81,19 @@ const SCHEDULE_ROWS: ScheduleRow[] = [
     ],
   },
   {
-    time: '10:00 AM – 12:00 PM',
+    time: '9:00 AM – 10:00 AM',
+    cells: [
+      { status: 'available' },
+      { status: 'unavailable' },
+      { status: 'available' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '10:00 AM – 11:00 AM',
     cells: [
       { status: 'unavailable' },
       { status: 'class' },
@@ -81,7 +105,31 @@ const SCHEDULE_ROWS: ScheduleRow[] = [
     ],
   },
   {
-    time: '1:00 PM – 3:00 PM',
+    time: '11:00 AM – 12:00 PM',
+    cells: [
+      { status: 'unavailable' },
+      { status: 'class' },
+      { status: 'unavailable' },
+      { status: 'class' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '12:00 PM – 1:00 PM',
+    cells: [
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '1:00 PM – 2:00 PM',
     cells: [
       { status: 'available' },
       { status: 'unavailable' },
@@ -93,7 +141,19 @@ const SCHEDULE_ROWS: ScheduleRow[] = [
     ],
   },
   {
-    time: '3:00 PM – 5:00 PM',
+    time: '2:00 PM – 3:00 PM',
+    cells: [
+      { status: 'available' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'available' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '3:00 PM – 4:00 PM',
     cells: [
       { status: 'unavailable' },
       { status: 'unavailable' },
@@ -105,7 +165,55 @@ const SCHEDULE_ROWS: ScheduleRow[] = [
     ],
   },
   {
-    time: '5:00 PM – 7:00 PM',
+    time: '4:00 PM – 5:00 PM',
+    cells: [
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'office-hours' },
+      { status: 'unavailable' },
+      { status: 'office-hours' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '5:00 PM – 6:00 PM',
+    cells: [
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '6:00 PM – 7:00 PM',
+    cells: [
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '7:00 PM – 8:00 PM',
+    cells: [
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+      { status: 'unavailable' },
+    ],
+  },
+  {
+    time: '8:00 PM – 9:00 PM',
     cells: [
       { status: 'unavailable' },
       { status: 'unavailable' },
@@ -1205,6 +1313,7 @@ function AvailabilityTab({
     useState<ConsultationMode>('Face-to-Face');
   const [newSlotLocation, setNewSlotLocation] = useState('');
   const [slotError, setSlotError] = useState<string | null>(null);
+  const [addedNotice, setAddedNotice] = useState<string | null>(null);
 
   const toggleSlot = (id: string) => {
     setSlots((prev) =>
@@ -1220,6 +1329,7 @@ function AvailabilityTab({
 
   const openAddSlot = () => {
     setSlotError(null);
+    setAddedNotice(null);
     setNewSlotStart('');
     setNewSlotEnd('');
     setNewSlotMode('Face-to-Face');
@@ -1275,6 +1385,9 @@ function AvailabilityTab({
     setSlots((prev) => [...prev, newSlot]);
     setIsAddingSlot(false);
     setSlotError(null);
+    setAddedNotice(
+      `Added ${time} — it now shows as Available on the Schedule tab.`,
+    );
   };
 
   return (
@@ -1336,7 +1449,10 @@ function AvailabilityTab({
               className={`fv-day-chip${
                 selectedDate === chip.date ? ' fv-day-chip-active' : ''
               }`}
-              onClick={() => setSelectedDate(chip.date)}
+              onClick={() => {
+                setSelectedDate(chip.date);
+                setAddedNotice(null);
+              }}
             >
               <span className="fv-day-chip-label">{chip.label}</span>
               <span className="fv-day-chip-date">{chip.date}</span>
@@ -1357,6 +1473,25 @@ function AvailabilityTab({
             </button>
           )}
         </div>
+
+        <p className="fv-slots-hint">
+          Slots you add here automatically appear as “Available” for that
+          day on the Schedule tab.
+        </p>
+
+        {addedNotice && (
+          <div className="fv-slots-added-notice">
+            <CheckSmallIcon />
+            <span>{addedNotice}</span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setAddedNotice(null)}
+            >
+              <XSmallIcon />
+            </button>
+          </div>
+        )}
 
         {isAddingSlot && (
           <div className="fv-add-slot-form">
@@ -1731,6 +1866,33 @@ function ShieldIcon() {
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CheckSmallIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M5 12.5l4.5 4.5L19 7"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function XSmallIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M6 6l12 12M18 6L6 18"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
       />
     </svg>
   );

@@ -979,8 +979,9 @@ function AppContent() {
             walkInQueueCount={queue.length}
             onMenuPress={() => openSideMenu('faculty')}
             onNotificationsPress={() => setScreen('facultyNotifications')}
-            onViewSchedule={() => console.log('View full schedule')}
-            onOpenAppointments={() => setScreen('facultyAvailability')}
+            onViewSchedule={() => setScreen('facultyDirectory')}
+            onOpenAppointments={() => setScreen('facultyDirectory')}
+            onOpenPendingReschedules={() => setScreen('facultyDirectory')}
             onOpenAvailability={() => setScreen('facultyAvailability')}
             onOpenWalkInQueue={() => setScreen('queue')}
             onOpenSlotIQAI={() => console.log('Open SlotIQ AI')}

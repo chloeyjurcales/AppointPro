@@ -1,12 +1,9 @@
-/*
-  AppointmentsView — refined visual pass. Tokens from src/styles/theme.css.
-*/
-
 .av-page {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+  animation: theme-fade-in var(--duration-base, 0.2s)
+    var(--ease-standard, ease) both;
 }
 
 /* ---------- Header ---------- */
@@ -45,9 +42,15 @@
   border-radius: var(--radius-md, 10px);
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
-  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
-    transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
+  box-shadow: var(
+    --shadow-brand,
+    0 10px 24px rgba(122, 14, 44, 0.24)
+  );
+  transition:
+    background var(--duration-fast, 0.15s)
+      var(--ease-standard, ease),
+    transform var(--duration-fast, 0.15s)
+      var(--ease-standard, ease);
 }
 
 .av-new-btn:hover {
@@ -82,8 +85,11 @@
   padding: 8px 16px;
   border-radius: var(--radius-sm, 8px);
   cursor: pointer;
-  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
-    color var(--duration-fast, 0.15s) var(--ease-standard, ease);
+  transition:
+    background var(--duration-fast, 0.15s)
+      var(--ease-standard, ease),
+    color var(--duration-fast, 0.15s)
+      var(--ease-standard, ease);
 }
 
 .av-tab:hover {
@@ -109,7 +115,10 @@
   border-radius: var(--radius-lg, 14px);
   padding: 8px 22px 18px;
   overflow-x: auto;
-  box-shadow: var(--shadow-xs, 0 1px 2px rgba(26, 15, 20, 0.05));
+  box-shadow: var(
+    --shadow-xs,
+    0 1px 2px rgba(26, 15, 20, 0.05)
+  );
 }
 
 .av-table {
@@ -120,7 +129,8 @@
   font-size: 13.5px;
 }
 
-/* Keeps every header directly above its matching data column. */
+/* Column widths */
+
 .av-table th:nth-child(1),
 .av-table td:nth-child(1) {
   width: 25%;
@@ -146,8 +156,11 @@
   width: 16%;
 }
 
+/* ---------- Center all table columns ---------- */
+
 .av-table thead th {
-  text-align: left;
+  text-align: center;
+  vertical-align: middle;
   color: var(--text-secondary, #6b7280);
   font-size: 11.5px;
   font-weight: 700;
@@ -166,12 +179,15 @@
   padding: 14px 10px;
   border-bottom: 1px solid var(--gray-150, #f0eef0);
   color: var(--text-primary, #1a1a1a);
-  vertical-align: top;
+  vertical-align: middle;
+  text-align: center;
   overflow-wrap: anywhere;
 }
 
 .av-table tbody tr {
-  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+  transition:
+    background var(--duration-fast, 0.15s)
+      var(--ease-standard, ease);
 }
 
 .av-table tbody tr:hover {
@@ -182,10 +198,15 @@
   border-bottom: none;
 }
 
+/* ---------- Date & Time ---------- */
+
 .av-datetime {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 2px;
+  width: 100%;
 }
 
 .av-date {
@@ -198,17 +219,26 @@
   color: var(--text-secondary, #6b7280);
 }
 
+/* ---------- Student ---------- */
+
 .av-student {
   font-weight: 600;
+  text-align: center;
 }
+
+/* ---------- Reason ---------- */
 
 .av-reason {
   color: var(--text-secondary, #6b7280);
+  text-align: center;
 }
+
+/* ---------- Status ---------- */
 
 .av-status {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   font-size: 12px;
   font-weight: 700;
@@ -221,6 +251,7 @@
   content: '';
   width: 6px;
   height: 6px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: currentColor;
 }
@@ -240,11 +271,14 @@
   color: var(--text-secondary, #6b7280);
 }
 
+/* ---------- Actions ---------- */
+
 .av-actions {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  width: 100%;
 }
 
 .av-table thead th:last-child,
@@ -263,9 +297,13 @@
   color: var(--text-secondary, #6b7280);
   border-radius: var(--radius-sm, 8px);
   cursor: pointer;
-  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
-    color var(--duration-fast, 0.15s) var(--ease-standard, ease),
-    transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
+  transition:
+    background var(--duration-fast, 0.15s)
+      var(--ease-standard, ease),
+    color var(--duration-fast, 0.15s)
+      var(--ease-standard, ease),
+    transform var(--duration-fast, 0.15s)
+      var(--ease-standard, ease);
 }
 
 .av-action-btn:hover {
@@ -274,8 +312,10 @@
   transform: translateY(-1px);
 }
 
+/* ---------- Empty ---------- */
+
 .av-empty {
-  text-align: center;
+  text-align: center !important;
   color: var(--text-secondary, #6b7280);
   padding: 48px 10px !important;
 }
@@ -308,6 +348,8 @@
   font-size: 12.5px;
   color: var(--text-secondary, #6b7280);
 }
+
+/* ---------- Footer ---------- */
 
 .av-footer {
   padding: 14px 10px 4px;
