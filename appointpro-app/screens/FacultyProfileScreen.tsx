@@ -131,7 +131,7 @@ export default function FacultyProfileScreen({
               Dr. Juan Dela Cruz is fully booked for this day.
             </Text>
             <TouchableOpacity style={styles.queueBannerButton} onPress={onJoinWalkInQueue}>
-              <Text style={styles.queueBannerButtonText}>Join Walk-in Queue</Text>
+              <Text style={styles.queueBannerButtonText}>View Queue</Text>
             </TouchableOpacity>
           </View>
         )}

@@ -316,6 +316,7 @@ export default function FacultySignUpPage({
                   className="fsu-submit"
                   disabled={loading}
                 >
+                  {loading && <span className="lp-spinner" aria-hidden="true" />}
                   {loading ? 'Creating account…' : 'Create Account'}
                 </button>
               </form>

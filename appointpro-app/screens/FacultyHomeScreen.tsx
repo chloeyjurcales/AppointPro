@@ -67,7 +67,7 @@ export default function FacultyHomeScreen({
   const quickActions: QuickAction[] = [
     { key: 'appointments', label: 'Appointments', icon: 'calendar-outline', background: '#5B7FDE', onPress: onOpenAppointments },
     { key: 'availability', label: 'Availability', icon: 'checkmark-circle-outline', background: '#3FB68A', onPress: onOpenAvailability },
-    { key: 'queue', label: 'Walk-in\nQueue', icon: 'notifications-outline', background: '#F0C93A', onPress: onOpenWalkInQueue },
+    { key: 'queue', label: 'Queue', icon: 'notifications-outline', background: '#F0C93A', onPress: onOpenWalkInQueue },
     { key: 'slotiq', label: 'SlotIQ AI', icon: 'sparkles-outline', background: '#9B5DE5', onPress: onOpenSlotIQAI },
   ];
 
@@ -102,7 +102,7 @@ export default function FacultyHomeScreen({
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statNumber, { color: '#3B4A9E' }]}>{walkInQueueCount}</Text>
-            <Text style={styles.statLabel}>Walk-in{'\n'}in Queue</Text>
+            <Text style={styles.statLabel}>In{'\n'}Queue</Text>
           </View>
         </View>
 

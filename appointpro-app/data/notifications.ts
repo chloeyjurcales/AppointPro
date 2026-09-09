@@ -6,6 +6,7 @@ export type NotificationItem = {
   title: string;
   description: string;
   time: string;
+  read: boolean;
 };
 
 export const INITIAL_STUDENT_NOTIFICATIONS: NotificationItem[] = [
@@ -15,6 +16,7 @@ export const INITIAL_STUDENT_NOTIFICATIONS: NotificationItem[] = [
     title: 'Appointment Reminder',
     description: 'You have an appointment today at 10:00 AM.',
     time: '8:00 AM',
+    read: false,
   },
   {
     id: '2',
@@ -22,6 +24,7 @@ export const INITIAL_STUDENT_NOTIFICATIONS: NotificationItem[] = [
     title: 'Queue Update',
     description: "You're next in line.",
     time: '9:30 AM',
+    read: false,
   },
   {
     id: '3',
@@ -29,6 +32,7 @@ export const INITIAL_STUDENT_NOTIFICATIONS: NotificationItem[] = [
     title: 'Faculty Announcement',
     description: 'New schedule for this week.',
     time: '7:30 AM',
+    read: true,
   },
   {
     id: '4',
@@ -36,6 +40,7 @@ export const INITIAL_STUDENT_NOTIFICATIONS: NotificationItem[] = [
     title: 'Appointment Reminder',
     description: 'You have an appointment today at 11:00 AM.',
     time: '8:00 AM',
+    read: false,
   },
   {
     id: '5',
@@ -43,6 +48,7 @@ export const INITIAL_STUDENT_NOTIFICATIONS: NotificationItem[] = [
     title: 'Queue Update',
     description: "You're next in line.",
     time: '11:30 AM',
+    read: true,
   },
 ];
 
@@ -67,6 +73,7 @@ export function createNotification(
   return {
     id: `n-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     time: formatNotificationTime(),
+    read: false,
     ...input,
   };
 }

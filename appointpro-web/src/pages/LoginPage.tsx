@@ -235,6 +235,7 @@ export default function LoginPage({
               {error && <p className="lp-error">{error}</p>}
 
               <button type="submit" className="lp-submit" disabled={loading}>
+                {loading && <span className="lp-spinner" aria-hidden="true" />}
                 {loading ? 'Logging in…' : 'Log In'}
               </button>
             </form>

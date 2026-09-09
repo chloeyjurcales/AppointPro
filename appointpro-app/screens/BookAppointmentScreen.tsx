@@ -66,10 +66,14 @@ export default function BookAppointmentScreen({
   const [purpose, setPurpose] = useState('');
 
   const isReschedule = mode === 'reschedule';
-  const slotsForDate = scheduleByDate[selectedDate] ?? [];
+  const allSlotsForDate = scheduleByDate[selectedDate] ?? [];
+  // Fully booked slots are removed from the list entirely — once every
+  // minute of a slot (e.g. a 2-hour 3-5 window) is claimed by other
+  // students' bookings, it should no longer appear as a choice here.
+  const slotsForDate = allSlotsForDate.filter((s) => !isSlotFull(s));
   const selectedDay = WEEK_DAYS.find((d) => d.date === selectedDate);
   const selectedSlot = slotsForDate.find((s) => s.id === selectedSlotId);
-  const availableCount = slotsForDate.filter((s) => !isSlotFull(s)).length;
+  const availableCount = slotsForDate.length;
   const fittingOptions = selectedSlot ? getFittingDurationOptions(selectedSlot) : [];
 
   useEffect(() => {
@@ -193,66 +197,53 @@ export default function BookAppointmentScreen({
 
           <Text style={styles.sectionTitle}>Select Time & Location</Text>
 
-          {slotsForDate.length === 0 ? (
+          {allSlotsForDate.length === 0 ? (
             <View style={styles.emptySchedule}>
               <Ionicons name="calendar-outline" size={22} color={colors.textMuted} />
               <Text style={styles.emptyScheduleText}>
                 No slots offered this day. Try another date.
               </Text>
             </View>
+          ) : slotsForDate.length === 0 ? (
+            <View style={styles.emptySchedule}>
+              <Ionicons name="checkmark-done-outline" size={22} color={colors.textMuted} />
+              <Text style={styles.emptyScheduleText}>
+                All slots for this day are fully booked. Try another date.
+              </Text>
+            </View>
           ) : (
             slotsForDate.map((slot) => {
               const isSelected = slot.id === selectedSlotId;
-              const full = isSlotFull(slot);
               const remaining = getRemainingMinutes(slot);
               return (
                 <TouchableOpacity
                   key={slot.id}
-                  style={[
-                    styles.slotCard,
-                    isSelected && styles.slotCardSelected,
-                    full && styles.slotCardDisabled,
-                  ]}
-                  onPress={() => !full && setSelectedSlotId(slot.id)}
-                  activeOpacity={full ? 1 : 0.75}
-                  disabled={full}
+                  style={[styles.slotCard, isSelected && styles.slotCardSelected]}
+                  onPress={() => setSelectedSlotId(slot.id)}
+                  activeOpacity={0.75}
                 >
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      isSelected && styles.radioOuterActive,
-                      full && styles.radioOuterDisabled,
-                    ]}
-                  >
+                  <View style={[styles.radioOuter, isSelected && styles.radioOuterActive]}>
                     {isSelected && <View style={styles.radioInner} />}
                   </View>
 
                   <View style={styles.slotTextWrap}>
-                    <Text style={[styles.slotTime, full && styles.slotTextDisabled]}>
-                      {slot.time}
-                    </Text>
+                    <Text style={styles.slotTime}>{slot.time}</Text>
                     <View style={styles.slotMetaRow}>
                       <Ionicons
                         name={slot.mode === 'Online' ? 'wifi-outline' : 'location-outline'}
                         size={12}
                         color={colors.textMuted}
                       />
-                      <Text style={[styles.slotLocation, full && styles.slotTextDisabled]}>
-                        {slot.location}
-                      </Text>
+                      <Text style={styles.slotLocation}>{slot.location}</Text>
                     </View>
-                    <Text style={[styles.slotMode, full && styles.slotTextDisabled]}>
-                      {full ? 'Fully booked' : `${remaining} min remaining`}
-                    </Text>
+                    <Text style={styles.slotMode}>{remaining} min remaining</Text>
                   </View>
-
-                  {full && <Text style={styles.bookedTag}>Full</Text>}
                 </TouchableOpacity>
               );
             })
           )}
 
-          {selectedSlot && !isSlotFull(selectedSlot) && (
+          {selectedSlot && (
             <>
               <Text style={styles.sectionTitle}>Appointment Duration</Text>
               <View style={styles.durationRow}>

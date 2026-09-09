@@ -2,17 +2,13 @@ import { useState, type ReactElement } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import AppointmentsView from './AppointmentsView';
+import FacultyView from './FacultyView';
+import NotificationsView from './NotificationsView';
 import './Dashboard.css';
 
 type DashboardProps = {
   session: Session;
-  /** Optional hook for wiring up real navigation later (router, tabs, etc). */
   onNavigate?: (section: NavId) => void;
-  /**
-   * Optional override for logging out. Defaults to a real Supabase
-   * signOut, but the demo (no-credentials) session needs its own logic
-   * since there's no real Supabase session to sign out of.
-   */
   onLogout?: () => void | Promise<void>;
 };
 
@@ -22,8 +18,7 @@ export type NavId =
   | 'faculty'
   | 'reports'
   | 'notifications'
-  | 'settings'
-  | 'help';
+  | 'settings';
 
 type NavItem = {
   id: NavId;
@@ -47,12 +42,14 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'reports', label: 'Reports', icon: ReportsIcon },
   { id: 'notifications', label: 'Notifications', icon: BellIcon, badge: 2 },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
-  { id: 'help', label: 'Help Center', icon: HelpIcon },
 ];
 
-// Placeholder data — replace with real Supabase queries once the
-// appointments/queue tables exist.
-const STATS = { total: 5, upcoming: 2, completed: 1, cancelled: 0 };
+const STATS = {
+  total: 5,
+  upcoming: 2,
+  completed: 1,
+  cancelled: 0,
+};
 
 const TODAY_SCHEDULE: ScheduleItem[] = [
   {
@@ -80,11 +77,21 @@ const TODAY_SCHEDULE: ScheduleItem[] = [
 
 const QUOTE = 'Better conversations build a brighter future.';
 
-export default function Dashboard({ session, onNavigate, onLogout }: DashboardProps) {
+export default function Dashboard({
+  session,
+  onNavigate,
+  onLogout,
+}: DashboardProps) {
   const user = session.user;
   const fullName =
     (user.user_metadata?.full_name as string | undefined) ?? user.email ?? '';
-  const firstAndLast = fullName.trim().split(/\s+/).slice(0, 2).join(' ');
+
+  const firstAndLast = fullName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .join(' ');
+
   const initials =
     firstAndLast
       .split(' ')
@@ -110,7 +117,6 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
 
   return (
     <div className="db-page">
-      {/* ---------- Sidebar ---------- */}
       <aside className="db-sidebar">
         <div className="db-sidebar-brand">
           <div className="db-sidebar-brand-mark">
@@ -124,11 +130,14 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
             <button
               key={id}
               type="button"
-              className={`db-nav-item${activeNav === id ? ' db-nav-item-active' : ''}`}
+              className={`db-nav-item${
+                activeNav === id ? ' db-nav-item-active' : ''
+              }`}
               onClick={() => handleNavClick(id)}
             >
               <Icon />
               <span>{label}</span>
+
               {typeof badge === 'number' && badge > 0 && (
                 <span className="db-nav-badge">{badge}</span>
               )}
@@ -144,29 +153,37 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
             title="Log out"
           >
             <span className="db-sidebar-avatar">{initials}</span>
+
             <span className="db-sidebar-profile-text">
               <span className="db-sidebar-profile-name">
                 {firstAndLast || user.email}
               </span>
               <span className="db-sidebar-profile-role">Faculty</span>
             </span>
+
             <LogoutIcon />
           </button>
         </div>
       </aside>
 
-      {/* ---------- Main column ---------- */}
       <div className="db-body">
         <header className="db-topbar">
           <div className="db-search">
             <SearchIcon />
             <input type="text" placeholder="Search..." />
           </div>
+
           <div className="db-topbar-icons">
-            <button type="button" className="db-icon-btn" aria-label="Notifications">
+            <button
+              type="button"
+              className="db-icon-btn"
+              aria-label="Notifications"
+              onClick={() => handleNavClick('notifications')}
+            >
               <BellIcon />
               <span className="db-icon-dot" />
             </button>
+
             <span className="db-avatar">{initials}</span>
           </div>
         </header>
@@ -188,6 +205,7 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
                     <span className="db-stat-value">{STATS.total}</span>
                     <span className="db-stat-label">Total Appointments</span>
                   </div>
+
                   <div className="db-stat-card">
                     <div className="db-stat-icon">
                       <ClockIcon />
@@ -195,6 +213,7 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
                     <span className="db-stat-value">{STATS.upcoming}</span>
                     <span className="db-stat-label">Upcoming</span>
                   </div>
+
                   <div className="db-stat-card">
                     <div className="db-stat-icon">
                       <CheckIcon />
@@ -202,6 +221,7 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
                     <span className="db-stat-value">{STATS.completed}</span>
                     <span className="db-stat-label">Completed</span>
                   </div>
+
                   <div className="db-stat-card">
                     <div className="db-stat-icon">
                       <CancelIcon />
@@ -214,6 +234,7 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
                 <section className="db-schedule-card">
                   <div className="db-schedule-header">
                     <h2>Today&apos;s Schedule</h2>
+
                     <button
                       type="button"
                       className="db-view-all"
@@ -223,26 +244,22 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
                     </button>
                   </div>
 
-                  {TODAY_SCHEDULE.length === 0 ? (
-                    <p className="db-schedule-empty">
-                      No appointments scheduled for today.
-                    </p>
-                  ) : (
-                    <ul className="db-schedule-list">
-                      {TODAY_SCHEDULE.map((item) => (
-                        <li key={item.id} className="db-schedule-item">
-                          <span className="db-schedule-time">{item.time}</span>
-                          <span className="db-schedule-name">{item.studentName}</span>
-                          <span className="db-schedule-type">{item.type}</span>
-                          <span
-                            className={`db-status-badge db-status-${item.status.toLowerCase()}`}
-                          >
-                            {item.status}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <ul className="db-schedule-list">
+                    {TODAY_SCHEDULE.map((item) => (
+                      <li key={item.id} className="db-schedule-item">
+                        <span className="db-schedule-time">{item.time}</span>
+                        <span className="db-schedule-name">
+                          {item.studentName}
+                        </span>
+                        <span className="db-schedule-type">{item.type}</span>
+                        <span
+                          className={`db-status-badge db-status-${item.status.toLowerCase()}`}
+                        >
+                          {item.status}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </section>
               </div>
 
@@ -263,26 +280,52 @@ export default function Dashboard({ session, onNavigate, onLogout }: DashboardPr
             </div>
           )}
 
-          {activeNav !== 'home' && activeNav !== 'appointments' && (
+          {activeNav === 'faculty' && (
             <div className="db-main-col">
-              <div className="db-placeholder">
-                <h1>{NAV_ITEMS.find((item) => item.id === activeNav)?.label}</h1>
-                <p>This section is coming soon.</p>
-              </div>
+              <FacultyView />
             </div>
           )}
+
+          {activeNav === 'notifications' && (
+            <div className="db-main-col">
+              <NotificationsView />
+            </div>
+          )}
+
+          {activeNav !== 'home' &&
+            activeNav !== 'appointments' &&
+            activeNav !== 'faculty' &&
+            activeNav !== 'notifications' && (
+              <div className="db-main-col">
+                <div className="db-placeholder">
+                  <h1>
+                    {NAV_ITEMS.find((item) => item.id === activeNav)?.label}
+                  </h1>
+                  <p>This section is coming soon.</p>
+                </div>
+              </div>
+            )}
         </main>
       </div>
     </div>
   );
 }
 
-/* ---------- Calendar widget ---------- */
-
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 const MONTH_LABELS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 function CalendarCard() {
@@ -298,8 +341,13 @@ function CalendarCard() {
   const cells: { day: number; inMonth: boolean; isToday: boolean }[] = [];
 
   for (let i = startOffset - 1; i >= 0; i--) {
-    cells.push({ day: daysInPrevMonth - i, inMonth: false, isToday: false });
+    cells.push({
+      day: daysInPrevMonth - i,
+      inMonth: false,
+      isToday: false,
+    });
   }
+
   for (let day = 1; day <= daysInMonth; day++) {
     cells.push({
       day,
@@ -310,6 +358,7 @@ function CalendarCard() {
         viewYear === today.getFullYear(),
     });
   }
+
   while (cells.length % 7 !== 0 || cells.length < 42) {
     cells.push({
       day: cells.length - (startOffset + daysInMonth) + 1,
@@ -321,30 +370,36 @@ function CalendarCard() {
   const goPrevMonth = () => {
     if (viewMonth === 0) {
       setViewMonth(11);
-      setViewYear((y) => y - 1);
+      setViewYear((year) => year - 1);
     } else {
-      setViewMonth((m) => m - 1);
+      setViewMonth((month) => month - 1);
     }
   };
 
   const goNextMonth = () => {
     if (viewMonth === 11) {
       setViewMonth(0);
-      setViewYear((y) => y + 1);
+      setViewYear((year) => year + 1);
     } else {
-      setViewMonth((m) => m + 1);
+      setViewMonth((month) => month + 1);
     }
   };
 
   return (
     <div className="db-calendar-card">
       <div className="db-calendar-header">
-        <button type="button" onClick={goPrevMonth} aria-label="Previous month">
+        <button
+          type="button"
+          onClick={goPrevMonth}
+          aria-label="Previous month"
+        >
           <ChevronLeftIcon />
         </button>
+
         <span>
           {MONTH_LABELS[viewMonth]} {viewYear}
         </span>
+
         <button type="button" onClick={goNextMonth} aria-label="Next month">
           <ChevronRightIcon />
         </button>
@@ -357,12 +412,12 @@ function CalendarCard() {
       </div>
 
       <div className="db-calendar-grid">
-        {cells.map((cell, i) => (
+        {cells.map((cell, index) => (
           <span
-            key={i}
-            className={`db-calendar-day${cell.inMonth ? '' : ' db-calendar-day-muted'}${
-              cell.isToday ? ' db-calendar-day-today' : ''
-            }`}
+            key={index}
+            className={`db-calendar-day${
+              cell.inMonth ? '' : ' db-calendar-day-muted'
+            }${cell.isToday ? ' db-calendar-day-today' : ''}`}
           >
             {cell.day}
           </span>
@@ -371,9 +426,6 @@ function CalendarCard() {
     </div>
   );
 }
-
-/* Small inline icons so this component has zero extra icon-library
-   dependencies (the web app doesn't currently install one). */
 
 function CapIcon() {
   return (
@@ -393,8 +445,20 @@ function CapIcon() {
 function HomeIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path d="m3 11 9-7 9 7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="m3 11 9-7 9 7"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -402,8 +466,21 @@ function HomeIcon() {
 function AppointmentsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M3 9.5h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M3 9.5h18M8 3v4M16 3v4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -412,9 +489,25 @@ function FacultyIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
       <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
-      <circle cx="17" cy="9" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M15.5 14.8c2.3.3 4 1.9 4.6 4.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <circle
+        cx="17"
+        cy="9"
+        r="2.4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M15.5 14.8c2.3.3 4 1.9 4.6 4.7"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -422,7 +515,12 @@ function FacultyIcon() {
 function ReportsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path
+        d="M4 20V10M11 20V4M18 20v-7"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -436,7 +534,12 @@ function BellIcon() {
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
-      <path d="M10 18.5a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M10 18.5a2 2 0 0 0 4 0"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -444,29 +547,19 @@ function BellIcon() {
 function SettingsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
+      <circle
+        cx="12"
+        cy="12"
+        r="3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
       <path
         d="M19.4 13.5a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H4.5a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H10.5a1.7 1.7 0 0 0 1-1.6V4.5a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V10.5a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1Z"
         stroke="currentColor"
         strokeWidth="1.3"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function HelpIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="M9.5 9.2a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.2.9-1.2 1.8"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="17" r="1" fill="currentColor" />
     </svg>
   );
 }
@@ -481,7 +574,13 @@ function LogoutIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M14 15l4-3-4-3M18 12H9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M14 15l4-3-4-3M18 12H9"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -489,8 +588,19 @@ function LogoutIcon() {
 function SearchIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.7" />
-      <path d="m21 21-4.3-4.3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <circle
+        cx="11"
+        cy="11"
+        r="7"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="m21 21-4.3-4.3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -498,8 +608,20 @@ function SearchIcon() {
 function ClockIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M12 7v5l3.5 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M12 7v5l3.5 2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -507,8 +629,20 @@ function ClockIcon() {
 function CheckIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-      <path d="m8 12.5 2.5 2.5L16 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="m8 12.5 2.5 2.5L16 9"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -516,8 +650,19 @@ function CheckIcon() {
 function CancelIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-      <path d="m9 9 6 6M15 9l-6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="m9 9 6 6M15 9l-6 6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -525,7 +670,13 @@ function CancelIcon() {
 function ChevronLeftIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M15 6l-6 6 6 6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -533,7 +684,13 @@ function ChevronLeftIcon() {
 function ChevronRightIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M9 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

@@ -23,7 +23,7 @@ export type SideMenuKey =
   | 'directory'
   | 'appointments'
   | 'notifications'
-  | 'walkInQueue'
+  | 'queue'
   | 'profile'
   | 'facultyHome'
   | 'facultyDirectory'
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   panel: {

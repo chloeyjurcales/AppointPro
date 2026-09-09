@@ -32,7 +32,7 @@ export type StudentAppointment = {
   yearLevel?: string;
 };
 
-const APPOINTMENTS: StudentAppointment[] = [
+export const DEFAULT_APPOINTMENTS: StudentAppointment[] = [
   {
     id: '1',
     studentName: 'Maria Clara',
@@ -101,6 +101,7 @@ const TABS: { key: AppointmentStatus; label: string }[] = [
 ];
 
 type FacultyDirectoryScreenProps = {
+  appointments?: StudentAppointment[];
   onSelectAppointment?: (appointment: StudentAppointment) => void;
   onReschedulePress?: (appointment: StudentAppointment) => void;
   onCancelPress?: (appointment: StudentAppointment) => void;
@@ -108,6 +109,7 @@ type FacultyDirectoryScreenProps = {
 };
 
 export default function FacultyDirectoryScreen({
+  appointments,
   onSelectAppointment,
   onReschedulePress,
   onCancelPress,
@@ -115,7 +117,8 @@ export default function FacultyDirectoryScreen({
 }: FacultyDirectoryScreenProps) {
   const [activeFilter, setActiveFilter] = useState<AppointmentStatus>('upcoming');
 
-  const filtered = APPOINTMENTS.filter((a) => a.status === activeFilter);
+  const source = appointments ?? DEFAULT_APPOINTMENTS;
+  const filtered = source.filter((a) => a.status === activeFilter);
 
   return (
     <SafeAreaView style={styles.safeArea}>

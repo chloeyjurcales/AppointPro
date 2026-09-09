@@ -124,7 +124,6 @@ export default function LoginScreen({
 
           <View style={styles.socialRow}>
             <SocialButton provider="google" />
-            <SocialButton provider="microsoft" />
           </View>
 
           <View style={styles.signupRow}>

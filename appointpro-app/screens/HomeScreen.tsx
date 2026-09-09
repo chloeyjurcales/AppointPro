@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';
 
@@ -54,7 +54,17 @@ type HomeScreenProps = {
   onViewAppointments?: () => void;
   onViewNotifications?: () => void;
   onViewQueue?: () => void;
-  onBookAppointment?: () => void;
+  // Real walk-in queue numbers for this student. `queuePosition` /
+  // `queueEstimatedWaitMinutes` are null when the student hasn't joined
+  // the queue yet, in which case general queue stats are shown instead.
+  queueLength?: number;
+  queuePosition?: number | null;
+  queueEstimatedWaitMinutes?: number | null;
+  averageWaitMinutes?: number;
+  // Only show the Queue card once the student's booked appointment
+  // window has actually started (e.g. a 9-11 booking only shows it
+  // starting at 9), instead of all the time.
+  showQueueCard?: boolean;
   onTabChange?: (tab: TabKey) => void;
 };
 
@@ -69,7 +79,11 @@ export default function HomeScreen({
   onViewAppointments,
   onViewNotifications,
   onViewQueue,
-  onBookAppointment,
+  queueLength = 0,
+  queuePosition = null,
+  queueEstimatedWaitMinutes = null,
+  averageWaitMinutes = 10,
+  showQueueCard = false,
   onTabChange,
 }: HomeScreenProps) {
   return (
@@ -160,36 +174,39 @@ export default function HomeScreen({
           ))}
         </View>
 
-        <View style={styles.bottomRow}>
+        {showQueueCard && (
           <View style={styles.queueCard}>
-            <Text style={styles.smallCardTitle}>Walk-in Queue</Text>
-            <View style={styles.queueStatsRow}>
-              <View>
-                <Text style={styles.queueLabel}>Waiting</Text>
-                <Text style={styles.queueValue}>12</Text>
+            <Text style={styles.smallCardTitle}>Queue</Text>
+            {queuePosition ? (
+              <View style={styles.queueStatsRow}>
+                <View style={styles.queueStatItem}>
+                  <Text style={styles.queueLabel}>Your Number</Text>
+                  <Text style={styles.queueValue}>#{queuePosition}</Text>
+                </View>
+                <View style={styles.queueStatDivider} />
+                <View style={styles.queueStatItem}>
+                  <Text style={styles.queueLabel}>Est. Wait</Text>
+                  <Text style={styles.queueValue}>{queueEstimatedWaitMinutes} min</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.queueLabel}>Estimated</Text>
-                <Text style={styles.queueValue}>25 min</Text>
+            ) : (
+              <View style={styles.queueStatsRow}>
+                <View style={styles.queueStatItem}>
+                  <Text style={styles.queueLabel}>Waiting</Text>
+                  <Text style={styles.queueValue}>{queueLength}</Text>
+                </View>
+                <View style={styles.queueStatDivider} />
+                <View style={styles.queueStatItem}>
+                  <Text style={styles.queueLabel}>Estimated Waiting Time</Text>
+                  <Text style={styles.queueValue}>{averageWaitMinutes} min</Text>
+                </View>
               </View>
-            </View>
+            )}
             <TouchableOpacity onPress={onViewQueue}>
               <Text style={styles.link}>View Queue</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={styles.bookCard}
-            onPress={onBookAppointment}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.smallCardTitle}>Quick Book</Text>
-            <View style={styles.bookIconWrap}>
-              <MaterialCommunityIcons name="calendar-plus" size={26} color={colors.primary} />
-            </View>
-            <Text style={styles.bookCardAction}>Book Appointment</Text>
-          </TouchableOpacity>
-        </View>
+        )}
       </ScrollView>
 
       <BottomTabBar active="home" onChange={onTabChange} />
@@ -378,16 +395,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
   },
-  bottomRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
   queueCard: {
-    flex: 1,
     backgroundColor: colors.inputBackground,
     borderRadius: 12,
     padding: spacing.md,
+    marginTop: spacing.md,
   },
   smallCardTitle: {
     fontSize: 12,
@@ -397,33 +409,26 @@ const styles = StyleSheet.create({
   },
   queueStatsRow: {
     flexDirection: 'row',
-    gap: spacing.lg,
-    marginBottom: spacing.sm,
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  queueStatItem: {
+    flex: 1,
+  },
+  queueStatDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
   },
   queueLabel: {
     fontSize: 10,
     color: colors.textMuted,
+    marginBottom: 3,
   },
   queueValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.textDark,
-    marginTop: 1,
-  },
-  bookCard: {
-    flex: 1,
-    backgroundColor: colors.inputBackground,
-    borderRadius: 12,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  bookIconWrap: {
-    marginVertical: spacing.sm,
-  },
-  bookCardAction: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-    textAlign: 'center',
   },
 });

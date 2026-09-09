@@ -1,0 +1,846 @@
+/*
+  FacultyView — refined visual pass. Tokens from src/styles/theme.css.
+*/
+
+.fv-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+/* ---------- Profile header ---------- */
+
+.fv-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface-card, #ffffff);
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-lg, 14px);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(26, 15, 20, 0.05));
+}
+
+.fv-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--brand-gradient, linear-gradient(155deg, #8a1433 0%, #5c0a21 100%));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
+}
+
+.fv-header-text h1 {
+  margin: 0 0 2px;
+  font-size: 17px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-header-text p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  background: var(--color-success-bg, #e4f6eb);
+  color: var(--color-success, #1f9d55);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill, 999px);
+}
+
+.fv-active-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---------- Tabs ---------- */
+
+.fv-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--surface-border, #e5e7eb);
+}
+
+.fv-tab {
+  border: none;
+  background: none;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    border-color var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-tab:hover {
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-tab-active {
+  color: var(--brand-500, #7a0e2c);
+  border-bottom-color: var(--brand-500, #7a0e2c);
+}
+
+/* ---------- Shared card ---------- */
+
+.fv-card {
+  background: var(--surface-card, #ffffff);
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-lg, 14px);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(26, 15, 20, 0.05));
+}
+
+.fv-card h2 {
+  margin: 0 0 14px;
+  font-size: 15px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-placeholder {
+  background: var(--surface-card, #ffffff);
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-lg, 14px);
+  padding: 48px 40px;
+  text-align: center;
+  color: var(--text-secondary, #6b7280);
+  font-size: 13.5px;
+}
+
+/* ---------- Profile tab ---------- */
+
+.fv-grid-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+@media (max-width: 900px) {
+  .fv-grid-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fv-info-list {
+  margin: 0 0 16px;
+}
+
+.fv-info-row {
+  display: flex;
+  gap: 6px;
+  font-size: 13.5px;
+  padding: 8px 0;
+  border-top: 1px solid var(--gray-150, #f4f3f5);
+}
+
+.fv-info-row:first-child {
+  border-top: none;
+}
+
+.fv-info-row dt {
+  font-weight: 600;
+  color: var(--text-primary, #1a1a1a);
+  min-width: 90px;
+}
+
+.fv-info-row dd {
+  margin: 0;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-edit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--brand-500, #7a0e2c);
+  background: none;
+  color: var(--brand-500, #7a0e2c);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    color var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-edit-button:hover {
+  background: var(--brand-500, #7a0e2c);
+  color: #ffffff;
+}
+
+.fv-about-text {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.6;
+}
+
+.fv-subheading {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  padding: 7px 0;
+}
+
+.fv-contact-row svg {
+  color: var(--brand-500, #7a0e2c);
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  background: var(--brand-50, #fdf1f4);
+  border-radius: var(--radius-sm, 8px);
+  box-sizing: border-box;
+}
+
+/* ---------- Schedule tab ---------- */
+
+.fv-schedule-card {
+  padding: 20px 22px 22px;
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+.fv-schedule-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.fv-schedule-header h2 {
+  margin: 0 0 3px;
+}
+
+.fv-schedule-subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-add-schedule-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: var(--brand-500, #7a0e2c);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: var(--radius-md, 9px);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-add-schedule-button:hover {
+  background: var(--brand-600, #5c0a21);
+  transform: translateY(-1px);
+}
+
+.fv-schedule-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-md, 10px);
+}
+
+.fv-schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.fv-schedule-table th {
+  text-align: center;
+  padding: 8px 6px 12px;
+  font-size: 11.5px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-th-day {
+  display: block;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-th-date {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-tertiary, #9b9b9b);
+}
+
+.fv-schedule-table td {
+  text-align: center;
+  padding: 9px 6px;
+  border-top: 1px solid var(--gray-150, #f0eef0);
+}
+
+.fv-schedule-table tbody tr {
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-schedule-table tbody tr:hover {
+  background: var(--surface-muted, #f7f5f6);
+}
+
+.fv-schedule-time {
+  text-align: left !important;
+  font-size: 12px;
+  color: var(--text-primary, #1a1a1a);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fv-cell-dash {
+  color: var(--gray-300, #cfcdd0);
+  font-size: 13px;
+}
+
+.fv-cell-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.fv-cell-available {
+  background: var(--color-success-bg, #e4f6eb);
+  color: var(--color-success, #1f9d55);
+}
+
+.fv-cell-class {
+  background: var(--color-violet-bg, #ece5fb);
+  color: var(--color-violet, #6a3fd6);
+}
+
+.fv-cell-office-hours {
+  background: var(--color-info-bg, #e3edfb);
+  color: var(--color-info, #2563eb);
+}
+
+.fv-schedule-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.fv-schedule-actions button {
+  border: none;
+  background: none;
+  color: var(--text-tertiary, #9b9b9b);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  display: inline-flex;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    color var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-schedule-actions button:hover {
+  color: var(--brand-500, #7a0e2c);
+  background: var(--brand-50, #fdf1f4);
+}
+
+.fv-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--gray-150, #f0eef0);
+}
+
+.fv-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.fv-dot-class {
+  background: var(--color-violet, #6a3fd6);
+}
+
+.fv-dot-office {
+  background: var(--color-info, #2563eb);
+}
+
+.fv-dot-available {
+  background: var(--color-success, #1f9d55);
+}
+
+.fv-dot-unavailable {
+  background: var(--gray-300, #cfcdd0);
+}
+
+/* ---------- Availability tab ---------- */
+
+.fv-availability {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+.fv-avail-header h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-avail-header p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-recurring-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 1px solid var(--brand-100, #fbe3e9);
+  background: var(--brand-50, #fdf1f4);
+  color: var(--brand-500, #7a0e2c);
+  padding: 14px 18px;
+  border-radius: var(--radius-md, 12px);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-recurring-banner:hover {
+  background: var(--brand-100, #fbe3e9);
+  transform: translateY(-1px);
+}
+
+.fv-recurring-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fv-active-schedules-card h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-recurring-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid var(--gray-150, #f0eef0);
+}
+
+.fv-recurring-row:first-of-type {
+  border-top: none;
+}
+
+.fv-recurring-days {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-recurring-detail {
+  margin: 0 0 2px;
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-recurring-range {
+  margin: 0;
+  font-size: 11px;
+  color: var(--brand-400, #b3153a);
+  font-weight: 600;
+}
+
+.fv-icon-danger {
+  border: none;
+  background: none;
+  color: var(--color-danger, #d93025);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-self: center;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-icon-danger:hover {
+  background: var(--color-danger-bg, #fdeceb);
+}
+
+.fv-day-picker-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fv-week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+  margin-bottom: 14px;
+}
+
+.fv-week-nav button {
+  border: none;
+  background: var(--surface-muted, #f4f3f5);
+  color: var(--text-secondary, #6b7280);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    color var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-week-nav button:hover {
+  background: var(--brand-300, #e9c7ce);
+  color: var(--brand-500, #7a0e2c);
+}
+
+.fv-select-day-label {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-day-chips {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.fv-day-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 46px;
+  padding: 8px 0;
+  border-radius: var(--radius-md, 10px);
+  border: 1.5px solid transparent;
+  background: var(--surface-muted, #f4f3f5);
+  cursor: pointer;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-day-chip:hover {
+  transform: translateY(-1px);
+}
+
+.fv-day-chip-label {
+  font-size: 10px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-day-chip-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-day-chip-active {
+  background: var(--brand-500, #7a0e2c);
+  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
+}
+
+.fv-day-chip-active .fv-day-chip-label,
+.fv-day-chip-active .fv-day-chip-date {
+  color: #ffffff;
+}
+
+.fv-slots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.fv-slots-header p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-add-slot-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  color: var(--brand-500, #7a0e2c);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 6px;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-add-slot-button:hover {
+  background: var(--brand-50, #fdf1f4);
+}
+
+.fv-empty-slots {
+  font-size: 12.5px;
+  color: var(--text-secondary, #6b7280);
+  padding: 10px 0;
+}
+
+.fv-slot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-md, 12px);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  transition: border-color var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    box-shadow var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-slot-row:hover {
+  border-color: var(--brand-200, #f6d0da);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(26, 15, 20, 0.05));
+}
+
+.fv-slot-time {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-slot-mode {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-slot-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fv-toggle {
+  width: 40px;
+  height: 22px;
+  border-radius: var(--radius-pill, 999px);
+  border: none;
+  background: var(--gray-200, #e5e7eb);
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-toggle-on {
+  background: var(--brand-500, #7a0e2c);
+  justify-content: flex-end;
+}
+
+.fv-toggle-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: block;
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(26, 15, 20, 0.05));
+  transition: transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-save-button {
+  margin-top: 6px;
+  width: 100%;
+  border: none;
+  background: var(--brand-500, #7a0e2c);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 13px;
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
+  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-save-button:hover {
+  background: var(--brand-600, #5c0a21);
+  transform: translateY(-1px);
+}
+
+/* ---------- Add time slot form ---------- */
+
+.fv-add-slot-form {
+  border: 1.5px dashed var(--surface-border-strong, #d8d5d9);
+  border-radius: var(--radius-md, 12px);
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--gray-25, #fafafa);
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+.fv-add-slot-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.fv-add-slot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.fv-add-slot-field-wide {
+  flex-basis: 100%;
+}
+
+.fv-add-slot-field label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-add-slot-field input,
+.fv-add-slot-field select {
+  height: 38px;
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-sm, 8px);
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--text-primary, #1a1a1a);
+  background: var(--surface-card, #ffffff);
+  outline: none;
+  transition: border-color var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    box-shadow var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-add-slot-field input:focus,
+.fv-add-slot-field select:focus {
+  border-color: var(--brand-500, #7a0e2c);
+  box-shadow: var(--ring-focus, 0 0 0 3px rgba(122, 14, 44, 0.16));
+}
+
+.fv-slot-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--color-danger, #d93025);
+}
+
+.fv-add-slot-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.fv-add-slot-cancel {
+  border: 1px solid var(--surface-border, #e5e7eb);
+  background: var(--surface-card, #ffffff);
+  color: var(--text-secondary, #6b7280);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-add-slot-cancel:hover {
+  background: var(--surface-muted, #f4f3f5);
+}
+
+.fv-add-slot-confirm {
+  border: none;
+  background: var(--brand-500, #7a0e2c);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-add-slot-confirm:hover {
+  background: var(--brand-600, #5c0a21);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 640px) {
+  .fv-day-chips {
+    justify-content: space-between;
+  }
+
+  .fv-day-chip {
+    width: 40px;
+  }
+}

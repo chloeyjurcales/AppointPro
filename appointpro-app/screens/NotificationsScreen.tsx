@@ -20,6 +20,7 @@ type NotificationsScreenProps = {
   onDeleteNotifications?: (ids: string[]) => void;
   onMenuPress?: () => void;
   onMarkAllRead?: () => void;
+  onMarkAsRead?: (id: string) => void;
   onSelectNotification?: (item: NotificationItem) => void;
   onTabChange?: (tab: TabKey) => void;
 };
@@ -29,6 +30,7 @@ export default function NotificationsScreen({
   onDeleteNotifications,
   onMenuPress,
   onMarkAllRead,
+  onMarkAsRead,
   onSelectNotification,
   onTabChange,
 }: NotificationsScreenProps) {
@@ -37,6 +39,7 @@ export default function NotificationsScreen({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const allSelected = selectedIds.size > 0 && selectedIds.size === notifications.length;
+  const hasUnread = notifications.some((n) => !n.read);
 
   const enterSelectMode = () => {
     setOptionsMenuOpen(false);
@@ -78,6 +81,7 @@ export default function NotificationsScreen({
     if (selectMode) {
       toggleSelected(item.id);
     } else {
+      if (!item.read) onMarkAsRead?.(item.id);
       onSelectNotification?.(item);
     }
   };
@@ -133,8 +137,10 @@ export default function NotificationsScreen({
         ) : (
           <>
             <Text style={styles.sectionTitle}>Today</Text>
-            <TouchableOpacity onPress={onMarkAllRead}>
-              <Text style={styles.link}>Mark all as read</Text>
+            <TouchableOpacity onPress={onMarkAllRead} disabled={!hasUnread}>
+              <Text style={[styles.link, !hasUnread && styles.linkDisabled]}>
+                Mark all as read
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -148,7 +154,7 @@ export default function NotificationsScreen({
           const isSelected = selectedIds.has(item.id);
           return (
             <TouchableOpacity
-              style={styles.row}
+              style={[styles.row, !item.read && !selectMode && styles.rowUnread]}
               onPress={() => handleRowPress(item)}
               activeOpacity={0.7}
             >
@@ -161,7 +167,10 @@ export default function NotificationsScreen({
                 <Ionicons name={item.icon} size={18} color={colors.primary} />
               </View>
               <View style={styles.textWrap}>
-                <Text style={styles.itemTitle}>{item.title}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
                 <Text style={styles.itemDesc}>{item.description}</Text>
               </View>
               <Text style={styles.itemTime}>{item.time}</Text>
@@ -241,6 +250,9 @@ const styles = StyleSheet.create({
     color: colors.link,
     fontWeight: '600',
   },
+  linkDisabled: {
+    color: colors.textMuted,
+  },
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
@@ -249,8 +261,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  rowUnread: {
+    backgroundColor: colors.tabInactiveBg,
+    borderBottomColor: 'transparent',
+    borderRadius: 10,
+    marginVertical: 2,
   },
   checkboxOuter: {
     width: 18,
@@ -278,6 +297,17 @@ const styles = StyleSheet.create({
   },
   textWrap: {
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  unreadDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.primary,
   },
   itemTitle: {
     fontSize: 13,

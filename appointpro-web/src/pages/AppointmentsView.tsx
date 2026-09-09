@@ -191,7 +191,18 @@ export default function AppointmentsView() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="av-empty">
-                  No appointments in this category.
+                  <div className="av-empty-inner">
+                    <span className="av-empty-icon" aria-hidden="true">
+                      <CalendarEmptyIcon />
+                    </span>
+                    <span className="av-empty-title">
+                      No appointments in this category
+                    </span>
+                    <span className="av-empty-subtitle">
+                      New bookings will show up here as students schedule
+                      them.
+                    </span>
+                  </div>
                 </td>
               </tr>
             )}
@@ -257,6 +268,34 @@ function DeleteIcon() {
         d="M10 11v6M14 11v6"
         stroke="currentColor"
         strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CalendarEmptyIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <rect
+        x="3.5"
+        y="5.5"
+        width="17"
+        height="15"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M3.5 9.5h17M8 3.5v4M16 3.5v4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9 14.5h6"
+        stroke="currentColor"
+        strokeWidth="1.6"
         strokeLinecap="round"
       />
     </svg>

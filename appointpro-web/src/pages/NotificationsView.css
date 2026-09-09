@@ -1,0 +1,225 @@
+/*
+  NotificationsView — refined visual pass. Tokens from src/styles/theme.css.
+*/
+
+.nv-page {
+  width: 100%;
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+.nv-notifications-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-card, #ffffff);
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-sm, 0 3px 12px rgba(74, 35, 50, 0.05));
+}
+
+.nv-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 24px 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--gray-150, #f4f3f5);
+}
+
+.nv-card-heading h1 {
+  margin: 0;
+  color: var(--text-primary, #1a1a1a);
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.nv-card-heading p {
+  margin: 4px 0 0;
+  color: var(--text-tertiary, #9b9b9b);
+  font-size: 12.5px;
+}
+
+.nv-mark-read {
+  border: 0;
+  background: transparent;
+  color: var(--brand-400, #b3153a);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    color var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.nv-mark-read:hover {
+  color: var(--brand-600, #5c0a21);
+  background: var(--brand-50, #fdf1f4);
+}
+
+.nv-notification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 16px 18px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+.nv-notification-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.nv-notification-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nv-notification-list::-webkit-scrollbar-thumb {
+  background: var(--brand-200, #e5d3d8);
+  border-radius: 8px;
+}
+
+.nv-notification-list::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-300, #cdb2ba);
+}
+
+.nv-notification {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  padding: 12px;
+  border-radius: var(--radius-sm, 8px);
+  flex-shrink: 0;
+  position: relative;
+  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.nv-notification:hover {
+  background: var(--surface-muted, #f7f5f6);
+}
+
+.nv-notification-unread {
+  background: var(--brand-50, #fdf1f4);
+}
+
+.nv-notification-unread:hover {
+  background: var(--brand-100, #fbe3e9);
+}
+
+.nv-notification-unread::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--brand-500, #7a0e2c);
+}
+
+.nv-notification-icon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-400, #b3153a);
+  background: var(--brand-50, #fdf1f4);
+  border-radius: var(--radius-sm, 8px);
+  flex-shrink: 0;
+}
+
+.nv-notification-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.nv-notification:nth-of-type(4n+2) .nv-notification-icon {
+  color: var(--color-info, #2563eb);
+  background: var(--color-info-bg, #e3edfb);
+}
+
+.nv-notification:nth-of-type(4n+3) .nv-notification-icon {
+  color: var(--color-violet, #6a3fd6);
+  background: var(--color-violet-bg, #ece5fb);
+}
+
+.nv-notification:nth-of-type(4n+4) .nv-notification-icon {
+  color: var(--color-success, #1f9d55);
+  background: var(--color-success-bg, #e4f6eb);
+}
+
+.nv-notification-copy {
+  min-width: 0;
+}
+
+.nv-notification-copy h2 {
+  margin: 0 0 3px;
+  color: var(--gray-700, #31333a);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.nv-notification-copy p {
+  margin: 0;
+  color: var(--gray-400, #8b8f98);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.nv-notification time {
+  align-self: start;
+  color: var(--text-tertiary, #9b9b9b);
+  font-size: 10.5px;
+  padding-top: 2px;
+  padding-left: 8px;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .nv-card-heading {
+    padding: 16px 14px 10px;
+  }
+
+  .nv-notification-list {
+    padding: 6px 12px 13px;
+    max-height: 380px;
+  }
+
+  .nv-notification {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    column-gap: 9px;
+    padding: 9px 8px;
+  }
+
+  .nv-notification-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .nv-notification-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .nv-notification-copy h2 {
+    font-size: 11px;
+  }
+
+  .nv-notification-copy p {
+    font-size: 9.5px;
+    -webkit-line-clamp: 1;
+  }
+
+  .nv-notification time {
+    font-size: 9px;
+  }
+}

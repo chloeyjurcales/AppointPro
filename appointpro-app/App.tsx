@@ -3,6 +3,7 @@ import { Animated, Easing } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import LoginScreen from './screens/LoginScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import AccountTypeScreen from './screens/AccountTypeScreen';
 import StudentSignUpScreen from './screens/StudentSignUpScreen';
 import FacultySignUpScreen from './screens/FacultySignUpScreen';
@@ -17,7 +18,10 @@ import AppointmentsScreen from './screens/AppointmentsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import FacultyHomeScreen from './screens/FacultyHomeScreen';
-import FacultyDirectoryScreen, { StudentAppointment } from './screens/FacultyDirectoryScreen';
+import FacultyDirectoryScreen, {
+  StudentAppointment,
+  DEFAULT_APPOINTMENTS,
+} from './screens/FacultyDirectoryScreen';
 import StudentProfileScreen from './screens/StudentProfileScreen';
 import FacultyAvailabilityScreen from './screens/FacultyAvailabilityScreen';
 import AddTimeSlotScreen, { NewFacultySlotInput } from './screens/AddTimeSlotScreen';
@@ -30,7 +34,7 @@ import FacultyPersonalInformationScreen, {
   FacultyPersonalInformation,
 } from './screens/FacultyPersonalInformationScreen';
 import AboutScreen from './screens/AboutScreen';
-import WalkInQueueScreen from './screens/WalkInQueueScreen';
+import QueueScreen from './screens/QueueScreen';
 import FacultyRescheduleAppointmentScreen from './screens/FacultyRescheduleAppointmentScreen';
 import RescheduleProposalScreen from './screens/RescheduleProposalScreen';
 import FacultyCancelAppointmentScreen from './screens/FacultyCancelAppointmentScreen';
@@ -55,7 +59,7 @@ import {
   toDateKey,
 } from './data/facultySlots';
 import { RecurringRule, generateSlotsFromRule } from './data/recurringSchedule';
-import { QueueEntry, INITIAL_QUEUE } from './data/queue';
+import { QueueEntry, INITIAL_QUEUE, AVERAGE_WAIT_MINUTES_PER_STUDENT } from './data/queue';
 import {
   NotificationItem,
   INITIAL_STUDENT_NOTIFICATIONS,
@@ -64,6 +68,7 @@ import {
 
 type Screen =
   | 'login'
+  | 'forgotPassword'
   | 'accountType'
   | 'studentSignUp'
   | 'facultySignUp'
@@ -89,7 +94,7 @@ type Screen =
   | 'personalInformation'
   | 'facultyPersonalInformation'
   | 'about'
-  | 'walkInQueue'
+  | 'queue'
   | 'facultyRescheduleAppointment'
   | 'rescheduleProposal'
   | 'facultyCancelAppointment'
@@ -148,6 +153,39 @@ function toReferenceNo(bookingId: string): string {
   return `APP-2026-${digits}`;
 }
 
+// Parses the start time out of a booked time-range label like
+// "9:00 AM - 9:30 AM" and reports whether that moment has arrived yet.
+// Used to only surface the Home screen's Queue card once a student's
+// appointment window has actually begun.
+function hasTimeArrived(bookedTimeRangeLabel: string | undefined, now: Date): boolean {
+  if (!bookedTimeRangeLabel) return false;
+  const startPart = bookedTimeRangeLabel.split('-')[0]?.trim();
+  const match = startPart?.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return false;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+  if (meridiem === 'PM' && hours !== 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+
+  const startTime = new Date(now);
+  startTime.setHours(hours, minutes, 0, 0);
+  return now.getTime() >= startTime.getTime();
+}
+
+// Directory appointments store mode/room in a compact shape; these turn
+// them into the plain display strings the reschedule/cancel/success
+// screens expect.
+function directoryLocationLabel(appt: StudentAppointment): string {
+  if (appt.mode === 'online') return 'Online';
+  return appt.room ?? 'Face-to-Face';
+}
+
+function directoryModeLabel(appt: StudentAppointment): string {
+  return appt.mode === 'online' ? 'Online' : 'Face-to-Face';
+}
+
 function AppContent() {
   const [screen, setScreen] = useState<Screen>('login');
   const [previousScreen, setPreviousScreen] = useState<Screen>('profile');
@@ -202,7 +240,44 @@ function AppContent() {
   const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE);
   const [currentStudentQueueId, setCurrentStudentQueueId] = useState<string | null>(null);
 
+  // Ticks every 30s purely to re-check whether a booked appointment's
+  // start time has arrived, so the Home screen's Queue card can appear
+  // right on time without needing a manual refresh.
+  const [nowTick, setNowTick] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hasAppointmentStarted = confirmedBooking
+    ? hasTimeArrived(confirmedBooking.bookedTimeRangeLabel, nowTick)
+    : false;
+
+  // Once the booked start time arrives, the student is automatically
+  // placed in today's queue (if they aren't already) so their Home
+  // screen and Queue screen show a real position/estimated wait.
+  useEffect(() => {
+    if (hasAppointmentStarted && confirmedBooking && !currentStudentQueueId) {
+      const newEntry: QueueEntry = { id: `q-${Date.now()}`, studentName: CURRENT_STUDENT_NAME };
+      setQueue((prev) => [...prev, newEntry]);
+      setCurrentStudentQueueId(newEntry.id);
+    }
+  }, [hasAppointmentStarted, confirmedBooking, currentStudentQueueId]);
+
+
   const [selectedStudent, setSelectedStudent] = useState<StudentAppointment | null>(null);
+
+  // The faculty member's list of student appointments shown in the
+  // Directory tab. Kept in state (rather than a static constant) so that
+  // faculty-initiated reschedules/cancellations actually update what's
+  // shown there.
+  const [facultyAppointments, setFacultyAppointments] =
+    useState<StudentAppointment[]>(DEFAULT_APPOINTMENTS);
+  // The specific appointment a faculty member tapped "Reschedule" or
+  // "Cancel" on from the Directory — this is what the reschedule/cancel
+  // screens and their confirm handlers operate on.
+  const [facultyActionAppointment, setFacultyActionAppointment] =
+    useState<StudentAppointment | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -393,16 +468,23 @@ function AppContent() {
     });
   };
 
-  // --- Walk-in queue handlers ---
-  const handleJoinQueue = () => {
-    const newEntry: QueueEntry = { id: `q-${Date.now()}`, studentName: 'You' };
-    setQueue((prev) => [...prev, newEntry]);
-    setCurrentStudentQueueId(newEntry.id);
-  };
+  // --- Queue handlers ---
+  // Faculty presses "Done" once a student's consultation wraps up
+  // (including early finishes) — this removes them from the front of the
+  // queue and shifts everyone else's position/estimated wait up.
+  const handleCompleteCurrentQueue = () => {
+    if (queue.length === 0) return;
+    const completed = queue[0];
+    setQueue((prev) => prev.slice(1));
 
-  const handleLeaveQueue = () => {
-    setQueue((prev) => prev.filter((q) => q.id !== currentStudentQueueId));
-    setCurrentStudentQueueId(null);
+    if (completed.id === currentStudentQueueId) {
+      setCurrentStudentQueueId(null);
+      addStudentNotification({
+        icon: 'checkmark-circle-outline',
+        title: 'Appointment Completed',
+        description: `Your consultation with ${facultyProfile.name} is done. Thank you!`,
+      });
+    }
   };
 
   // --- Notifications ---
@@ -419,6 +501,16 @@ function AppContent() {
     setStudentNotifications((prev) => prev.filter((n) => !ids.includes(n.id)));
   };
 
+  const handleMarkAllStudentNotificationsRead = () => {
+    setStudentNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const handleMarkStudentNotificationRead = (id: string) => {
+    setStudentNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
   // --- Cancellation ---
   const releaseCurrentBooking = () => {
     if (!confirmedBooking) return;
@@ -428,32 +520,32 @@ function AppContent() {
   };
 
   const handleFacultyCancel = (reason: string) => {
-    if (!confirmedBooking) return;
+    if (!facultyActionAppointment) return;
+    const appt = facultyActionAppointment;
 
-    const { dateLabel, bookedTimeRangeLabel: timeLabel, slot, bookingId } = confirmedBooking;
-
-    releaseCurrentBooking();
-    setCancelledNotice(`Your appointment was cancelled by the faculty. Reason: ${reason}`);
+    setFacultyAppointments((prev) =>
+      prev.map((a) => (a.id === appt.id ? { ...a, status: 'cancelled' } : a))
+    );
 
     addStudentNotification({
       icon: 'close-circle-outline',
       title: 'Appointment Cancelled',
-      description: `Your appointment on ${dateLabel} at ${timeLabel} was cancelled by the faculty. Reason: ${reason}`,
+      description: `Your appointment on ${appt.date} at ${appt.time} was cancelled by the faculty. Reason: ${reason}`,
     });
 
     setFacultyActionResult({
       type: 'cancelled',
-      studentName: CURRENT_STUDENT_NAME,
-      category: 'Academic Advising',
-      dateLabel,
-      timeLabel,
-      location: slot.location,
-      mode: slot.mode,
+      studentName: appt.studentName,
+      category: appt.category,
+      dateLabel: appt.date,
+      timeLabel: appt.time,
+      location: directoryLocationLabel(appt),
+      mode: directoryModeLabel(appt),
       reason,
-      referenceNo: toReferenceNo(bookingId),
+      referenceNo: toReferenceNo(`${appt.id}-${Date.now()}`),
     });
 
-    setConfirmedBooking(null);
+    setFacultyActionAppointment(null);
     setScreen('facultyActionSuccess');
   };
 
@@ -543,25 +635,18 @@ function AppContent() {
     durationMinutes: number;
     reason: string;
   }) => {
-    if (!confirmedBooking) return;
-
-    let updated = releaseMinutes(
-      scheduleByDate,
-      confirmedBooking.date,
-      confirmedBooking.slot.id,
-      confirmedBooking.bookingId
-    );
+    if (!facultyActionAppointment) return;
+    const appt = facultyActionAppointment;
 
     const { scheduleByDate: afterBooking, startOffset } = bookMinutes(
-      updated,
+      scheduleByDate,
       data.date,
       data.slot.id,
       data.durationMinutes,
-      CURRENT_STUDENT_NAME
+      appt.studentName
     );
-    setScheduleByDate(afterBooking);
-
     if (startOffset === null) return;
+    setScheduleByDate(afterBooking);
 
     const newSlot = (afterBooking[data.date] ?? []).find((s) => s.id === data.slot.id);
     const newBooking = newSlot?.bookings[newSlot.bookings.length - 1];
@@ -569,47 +654,39 @@ function AppContent() {
       ? getBookedTimeRangeLabel(newSlot, startOffset, data.durationMinutes)
       : data.slot.time;
 
-    setPendingReschedule({
-      reason: data.reason,
-      originalDateLabel: confirmedBooking.dateLabel,
-      originalTime: confirmedBooking.bookedTimeRangeLabel,
-      originalLocation: confirmedBooking.slot.location,
-      originalMode: confirmedBooking.slot.mode,
-      proposedDateLabel: data.dateLabel,
-      proposedTime: bookedTimeRangeLabel,
-      proposedLocation: data.slot.location,
-      proposedMode: data.slot.mode,
-    });
-
-    setConfirmedBooking({
-      date: data.date,
-      dateLabel: data.dateLabel,
-      slot: newSlot ?? data.slot,
-      duration: confirmedBooking.duration,
-      durationMinutes: data.durationMinutes,
-      purpose: confirmedBooking.purpose,
-      bookingId: newBooking?.bookingId ?? '',
-      bookedTimeRangeLabel,
-    });
+    setFacultyAppointments((prev) =>
+      prev.map((a) =>
+        a.id === appt.id
+          ? {
+              ...a,
+              date: data.dateLabel,
+              time: bookedTimeRangeLabel,
+              room: data.slot.mode === 'Online' ? undefined : data.slot.location,
+              mode: data.slot.mode === 'Online' ? 'online' : 'face-to-face',
+            }
+          : a
+      )
+    );
 
     addStudentNotification({
       icon: 'calendar-outline',
       title: 'Appointment Rescheduled',
-      description: `Your faculty proposed a new schedule: ${data.dateLabel} at ${bookedTimeRangeLabel}. Reason: ${data.reason}. Please review and confirm.`,
+      description: `Your appointment with ${facultyProfile.name} was rescheduled to ${data.dateLabel} at ${bookedTimeRangeLabel}. Reason: ${data.reason}.`,
     });
 
     setFacultyActionResult({
       type: 'rescheduled',
-      studentName: CURRENT_STUDENT_NAME,
-      category: 'Academic Advising',
+      studentName: appt.studentName,
+      category: appt.category,
       dateLabel: data.dateLabel,
       timeLabel: bookedTimeRangeLabel,
       location: data.slot.location,
       mode: data.slot.mode,
       reason: data.reason,
-      referenceNo: toReferenceNo(newBooking?.bookingId ?? ''),
+      referenceNo: toReferenceNo(newBooking?.bookingId ?? `${appt.id}-${Date.now()}`),
     });
 
+    setFacultyActionAppointment(null);
     setScreen('facultyActionSuccess');
   };
 
@@ -632,6 +709,7 @@ function AppContent() {
 
   const isAuthScreen =
     screen === 'login' ||
+    screen === 'forgotPassword' ||
     screen === 'accountType' ||
     screen === 'studentSignUp' ||
     screen === 'facultySignUp';
@@ -642,12 +720,20 @@ function AppContent() {
         {screen === 'login' && (
           <LoginScreen
             onSignUp={() => setScreen('accountType')}
-            onForgotPassword={() => {}}
+            onForgotPassword={() => setScreen('forgotPassword')}
             onLogin={(role, identifier, password) => {
               console.log('Login attempt:', role, identifier, password);
               setUserRole(role === 'faculty' ? 'faculty' : 'student');
               setScreen(role === 'faculty' ? 'facultyHome' : 'home');
             }}
+          />
+        )}
+
+        {screen === 'forgotPassword' && (
+          <ForgotPasswordScreen
+            onBack={() => setScreen('login')}
+            onBackToLogin={() => setScreen('login')}
+            onSendResetLink={(email) => console.log('Password reset requested for:', email)}
           />
         )}
 
@@ -694,12 +780,23 @@ function AppContent() {
             onNotificationsPress={() => setScreen('notifications')}
             onViewAppointments={() => setScreen('appointments')}
             onViewNotifications={() => setScreen('notifications')}
-            onViewQueue={() => setScreen('walkInQueue')}
-            onBookAppointment={() => {
-              setBookingPreselect(null);
-              setIsChoosingAfterReject(false);
-              setScreen('bookAppointment');
-            }}
+            onViewQueue={() => setScreen('queue')}
+            queueLength={queue.length}
+            queuePosition={
+              currentStudentQueueId
+                ? queue.findIndex((q) => q.id === currentStudentQueueId) + 1
+                : null
+            }
+            queueEstimatedWaitMinutes={
+              currentStudentQueueId
+                ? Math.max(
+                    queue.findIndex((q) => q.id === currentStudentQueueId),
+                    0
+                  ) * AVERAGE_WAIT_MINUTES_PER_STUDENT
+                : null
+            }
+            averageWaitMinutes={AVERAGE_WAIT_MINUTES_PER_STUDENT}
+            showQueueCard={hasAppointmentStarted}
             onTabChange={handleTabChange}
           />
         )}
@@ -731,7 +828,7 @@ function AppContent() {
               setIsChoosingAfterReject(false);
               setScreen('bookAppointment');
             }}
-            onJoinWalkInQueue={() => setScreen('walkInQueue')}
+            onJoinWalkInQueue={() => setScreen('queue')}
             onTabChange={handleTabChange}
           />
         )}
@@ -859,7 +956,8 @@ function AppContent() {
             notifications={studentNotifications}
             onDeleteNotifications={handleDeleteStudentNotifications}
             onMenuPress={() => openSideMenu('student')}
-            onMarkAllRead={() => console.log('Mark all as read')}
+            onMarkAllRead={handleMarkAllStudentNotificationsRead}
+            onMarkAsRead={handleMarkStudentNotificationRead}
             onSelectNotification={(item) => console.log('Selected notification:', item)}
             onTabChange={handleTabChange}
           />
@@ -878,12 +976,13 @@ function AppContent() {
 
         {screen === 'facultyHome' && (
           <FacultyHomeScreen
+            walkInQueueCount={queue.length}
             onMenuPress={() => openSideMenu('faculty')}
             onNotificationsPress={() => setScreen('facultyNotifications')}
             onViewSchedule={() => console.log('View full schedule')}
             onOpenAppointments={() => setScreen('facultyAvailability')}
             onOpenAvailability={() => setScreen('facultyAvailability')}
-            onOpenWalkInQueue={() => setScreen('walkInQueue')}
+            onOpenWalkInQueue={() => setScreen('queue')}
             onOpenSlotIQAI={() => console.log('Open SlotIQ AI')}
             onTabChange={handleFacultyTabChange}
           />
@@ -891,12 +990,19 @@ function AppContent() {
 
         {screen === 'facultyDirectory' && (
           <FacultyDirectoryScreen
+            appointments={facultyAppointments}
             onSelectAppointment={(appointment) => {
               setSelectedStudent(appointment);
               setScreen('studentProfile');
             }}
-            onReschedulePress={() => setScreen('facultyRescheduleAppointment')}
-            onCancelPress={() => setScreen('facultyCancelAppointment')}
+            onReschedulePress={(appointment) => {
+              setFacultyActionAppointment(appointment);
+              setScreen('facultyRescheduleAppointment');
+            }}
+            onCancelPress={(appointment) => {
+              setFacultyActionAppointment(appointment);
+              setScreen('facultyCancelAppointment');
+            }}
             onTabChange={handleFacultyTabChange}
           />
         )}
@@ -1006,28 +1112,37 @@ function AppContent() {
 
         {screen === 'about' && <AboutScreen onBack={() => setScreen(previousScreen)} />}
 
-        {screen === 'walkInQueue' && (
-          <WalkInQueueScreen
+        {screen === 'queue' && (
+          <QueueScreen
             queue={queue}
             currentQueueId={currentStudentQueueId}
-            onBack={() => setScreen('home')}
-            onJoin={handleJoinQueue}
-            onLeave={handleLeaveQueue}
+            hasAppointment={!!confirmedBooking}
+            role={userRole}
+            doctorName={facultyProfile.name}
+            doctorDepartment={facultyProfile.department}
+            onBack={() => setScreen(userRole === 'faculty' ? 'facultyHome' : 'home')}
+            onReschedule={() => setScreen('rescheduleAppointment')}
+            onCancelAppointment={handleStudentCancel}
+            onCompleteCurrent={handleCompleteCurrentQueue}
             onTabChange={handleTabChange}
+            onFacultyTabChange={handleFacultyTabChange}
           />
         )}
 
-        {screen === 'facultyRescheduleAppointment' && (
+        {screen === 'facultyRescheduleAppointment' && facultyActionAppointment && (
           <FacultyRescheduleAppointmentScreen
             scheduleByDate={scheduleByDate}
-            studentName={CURRENT_STUDENT_NAME}
-            purpose={confirmedBooking?.purpose}
-            originalDateLabel={confirmedBooking?.dateLabel}
-            originalTime={confirmedBooking?.bookedTimeRangeLabel}
-            originalLocation={confirmedBooking?.slot.location}
-            originalMode={confirmedBooking?.slot.mode}
-            durationMinutes={confirmedBooking?.durationMinutes ?? 30}
-            onBack={() => setScreen('facultyDirectory')}
+            studentName={facultyActionAppointment.studentName}
+            category={facultyActionAppointment.category}
+            originalDateLabel={facultyActionAppointment.date}
+            originalTime={facultyActionAppointment.time}
+            originalLocation={directoryLocationLabel(facultyActionAppointment)}
+            originalMode={directoryModeLabel(facultyActionAppointment)}
+            durationMinutes={30}
+            onBack={() => {
+              setFacultyActionAppointment(null);
+              setScreen('facultyDirectory');
+            }}
             onConfirm={handleFacultyReschedule}
           />
         )}
@@ -1048,14 +1163,17 @@ function AppContent() {
           />
         )}
 
-        {screen === 'facultyCancelAppointment' && (
+        {screen === 'facultyCancelAppointment' && facultyActionAppointment && (
           <FacultyCancelAppointmentScreen
-            studentName={CURRENT_STUDENT_NAME}
-            dateLabel={confirmedBooking?.dateLabel}
-            bookedTimeRangeLabel={confirmedBooking?.bookedTimeRangeLabel}
-            location={confirmedBooking?.slot.location}
-            mode={confirmedBooking?.slot.mode}
-            onBack={() => setScreen('facultyDirectory')}
+            studentName={facultyActionAppointment.studentName}
+            dateLabel={facultyActionAppointment.date}
+            bookedTimeRangeLabel={facultyActionAppointment.time}
+            location={directoryLocationLabel(facultyActionAppointment)}
+            mode={directoryModeLabel(facultyActionAppointment)}
+            onBack={() => {
+              setFacultyActionAppointment(null);
+              setScreen('facultyDirectory');
+            }}
             onConfirmCancel={handleFacultyCancel}
           />
         )}
@@ -1084,9 +1202,14 @@ function AppContent() {
         role={userRole}
         userName={userRole === 'faculty' ? 'Dr. Juan Dela Cruz' : CURRENT_STUDENT_NAME}
         activeKey={sideMenuActiveKey}
-        // TODO: replace with a real unread-notifications count once that
-        // state is lifted up from NotificationsScreen/FacultyNotificationsScreen.
-        notificationCount={3}
+        // Real unread count for the student; faculty notifications are
+        // still owned locally by FacultyNotificationsScreen, so this stays
+        // a static fallback for that role.
+        notificationCount={
+          userRole === 'student'
+            ? studentNotifications.filter((n) => !n.read).length
+            : 3
+        }
         onClose={() => setSideMenuOpen(false)}
         onNavigate={handleSideMenuNavigate}
         onLogout={handleSideMenuLogout}

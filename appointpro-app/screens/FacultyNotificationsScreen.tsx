@@ -82,6 +82,7 @@ export default function FacultyNotificationsScreen({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const allSelected = selectedIds.size > 0 && selectedIds.size === notifications.length;
+  const hasUnread = notifications.some((n) => n.unread);
 
   const enterSelectMode = () => {
     setOptionsMenuOpen(false);
@@ -123,8 +124,18 @@ export default function FacultyNotificationsScreen({
     if (selectMode) {
       toggleSelected(item.id);
     } else {
+      if (item.unread) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
+        );
+      }
       onSelectNotification?.(item);
     }
+  };
+
+  const handleMarkAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    onMarkAllRead?.();
   };
 
   return (
@@ -178,8 +189,10 @@ export default function FacultyNotificationsScreen({
         ) : (
           <>
             <Text style={styles.sectionTitle}>Today</Text>
-            <TouchableOpacity onPress={onMarkAllRead}>
-              <Text style={styles.markReadText}>Mark as all read</Text>
+            <TouchableOpacity onPress={handleMarkAllRead} disabled={!hasUnread}>
+              <Text style={[styles.markReadText, !hasUnread && styles.markReadTextDisabled]}>
+                Mark as all read
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -300,6 +313,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.link,
+  },
+  markReadTextDisabled: {
+    color: colors.textMuted,
   },
   listContent: {
     paddingHorizontal: spacing.lg,
