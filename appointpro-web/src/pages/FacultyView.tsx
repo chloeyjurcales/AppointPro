@@ -301,6 +301,13 @@ export default function FacultyView({
   );
 }
 
+type PersonalInfo = {
+  name: string;
+  email: string;
+  department: string;
+  consultationTypes: string;
+};
+
 function ProfileTab({
   facultyName,
   facultyId,
@@ -310,36 +317,251 @@ function ProfileTab({
   facultyId: string;
   facultyEmail: string;
 }) {
+  const [savedInfo, setSavedInfo] = useState<PersonalInfo>({
+    name: facultyName,
+    email: facultyEmail,
+    department: 'CITE Department',
+    consultationTypes: 'Face-to-Face, Online',
+  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState<PersonalInfo>(savedInfo);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const updateField = (field: keyof PersonalInfo) => (value: string) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
+
+  const startEditing = () => {
+    setForm(savedInfo);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError(null);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError(null);
+  };
+
+  const handleSave = () => {
+    const wantsPasswordChange = !!(
+      currentPassword ||
+      newPassword ||
+      confirmPassword
+    );
+
+    if (wantsPasswordChange) {
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        setPasswordError(
+          'Fill in all three password fields, or leave them all blank.',
+        );
+        return;
+      }
+      if (newPassword.length < 8) {
+        setPasswordError('New password must be at least 8 characters.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError('New passwords do not match.');
+        return;
+      }
+    }
+
+    setSavedInfo(form);
+    setPasswordError(null);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsEditing(false);
+  };
+
   return (
     <div className="fv-grid-two">
       <div className="fv-card">
         <h2>Personal Information</h2>
-        <dl className="fv-info-list">
-          <div className="fv-info-row">
-            <dt>Name:</dt>
-            <dd>{facultyName}</dd>
-          </div>
-          <div className="fv-info-row">
-            <dt>Faculty ID:</dt>
-            <dd>{facultyId}</dd>
-          </div>
-          <div className="fv-info-row">
-            <dt>Email:</dt>
-            <dd>{facultyEmail}</dd>
-          </div>
-          <div className="fv-info-row">
-            <dt>Department:</dt>
-            <dd>CITE</dd>
-          </div>
-          <div className="fv-info-row">
-            <dt>Position:</dt>
-            <dd>Professor</dd>
-          </div>
-        </dl>
 
-        <button type="button" className="fv-edit-button">
-          <EditIcon /> Edit
-        </button>
+        {isEditing ? (
+          <div className="fv-edit-form">
+            <div className="fv-edit-field">
+              <label htmlFor="pi-id">Employee ID</label>
+              <input id="pi-id" type="text" value={facultyId} disabled />
+            </div>
+
+            <div className="fv-edit-field">
+              <label htmlFor="pi-name">Full Name</label>
+              <input
+                id="pi-name"
+                type="text"
+                value={form.name}
+                onChange={(event) => updateField('name')(event.target.value)}
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            <div className="fv-edit-field">
+              <label htmlFor="pi-email">Email</label>
+              <input
+                id="pi-email"
+                type="email"
+                value={form.email}
+                onChange={(event) => updateField('email')(event.target.value)}
+                placeholder="Enter your email"
+              />
+            </div>
+
+            <div className="fv-edit-field">
+              <label htmlFor="pi-department">Department</label>
+              <input
+                id="pi-department"
+                type="text"
+                value={form.department}
+                onChange={(event) =>
+                  updateField('department')(event.target.value)
+                }
+                placeholder="Enter your department"
+              />
+            </div>
+
+            <div className="fv-edit-field">
+              <label htmlFor="pi-consultation">Consultation Type</label>
+              <input
+                id="pi-consultation"
+                type="text"
+                value={form.consultationTypes}
+                onChange={(event) =>
+                  updateField('consultationTypes')(event.target.value)
+                }
+                placeholder="e.g. Face-to-Face, Online"
+              />
+            </div>
+
+            <div className="fv-edit-divider" />
+
+            <div className="fv-edit-section-header">
+              <LockIcon /> <span>Change Password</span>
+            </div>
+            <p className="fv-edit-section-subtext">
+              Leave these blank if you don't want to change your password.
+            </p>
+
+            <div className="fv-edit-field">
+              <label htmlFor="pi-current-password">Current Password</label>
+              <input
+                id="pi-current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(event) => {
+                  setCurrentPassword(event.target.value);
+                  setPasswordError(null);
+                }}
+                placeholder="Enter your current password"
+              />
+            </div>
+
+            <div className="fv-edit-field">
+              <label htmlFor="pi-new-password">New Password</label>
+              <input
+                id="pi-new-password"
+                type="password"
+                value={newPassword}
+                onChange={(event) => {
+                  setNewPassword(event.target.value);
+                  setPasswordError(null);
+                }}
+                placeholder="Create a new password"
+              />
+            </div>
+
+            <div className="fv-edit-field">
+              <label htmlFor="pi-confirm-password">
+                Confirm New Password
+              </label>
+              <input
+                id="pi-confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => {
+                  setConfirmPassword(event.target.value);
+                  setPasswordError(null);
+                }}
+                placeholder="Confirm your new password"
+              />
+            </div>
+
+            <div className="fv-edit-info-box">
+              <ShieldIcon />
+              <p>
+                Use at least 8 characters with a mix of letters, numbers, and
+                symbols.
+              </p>
+            </div>
+
+            {passwordError && (
+              <p className="fv-edit-error">{passwordError}</p>
+            )}
+
+            <div className="fv-edit-actions">
+              <button
+                type="button"
+                className="fv-edit-save"
+                onClick={handleSave}
+              >
+                Save Changes
+              </button>
+              <button
+                type="button"
+                className="fv-edit-cancel"
+                onClick={cancelEditing}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <dl className="fv-info-list">
+              <div className="fv-info-row">
+                <dt>Name:</dt>
+                <dd>{savedInfo.name}</dd>
+              </div>
+              <div className="fv-info-row">
+                <dt>Faculty ID:</dt>
+                <dd>{facultyId}</dd>
+              </div>
+              <div className="fv-info-row">
+                <dt>Email:</dt>
+                <dd>{savedInfo.email}</dd>
+              </div>
+              <div className="fv-info-row">
+                <dt>Department:</dt>
+                <dd>{savedInfo.department}</dd>
+              </div>
+              <div className="fv-info-row">
+                <dt>Consultation Type:</dt>
+                <dd>{savedInfo.consultationTypes}</dd>
+              </div>
+              <div className="fv-info-row">
+                <dt>Position:</dt>
+                <dd>Professor</dd>
+              </div>
+            </dl>
+
+            <button
+              type="button"
+              className="fv-edit-button"
+              onClick={startEditing}
+            >
+              <EditIcon /> Edit
+            </button>
+          </>
+        )}
       </div>
 
       <div className="fv-card">
@@ -356,11 +578,11 @@ function ProfileTab({
         </div>
         <div className="fv-contact-row">
           <MailIcon />
-          <span>maria.clara@school.edu</span>
+          <span>{savedInfo.email}</span>
         </div>
         <div className="fv-contact-row">
           <BuildingIcon />
-          <span>CITE Department</span>
+          <span>{savedInfo.department}</span>
         </div>
       </div>
     </div>
@@ -1465,6 +1687,48 @@ function CheckIcon() {
         d="M5 12.5l4.5 4.5L19 7"
         stroke="#ffffff"
         strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <rect
+        x="5"
+        y="10.5"
+        width="14"
+        height="9.5"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M8 10.5V8a4 4 0 0 1 8 0v2.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M12 3.5l7 2.5v5c0 4.5-3 7.8-7 9.5-4-1.7-7-5-7-9.5V6l7-2.5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 12l2 2 4-4.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
