@@ -22,6 +22,8 @@ type LoginScreenProps = {
   onLogin?: (role: Role, identifier: string, password: string) => void;
   onSignUp?: () => void;
   onForgotPassword?: () => void;
+  errorMessage?: string | null;
+  submitting?: boolean;
 };
 
 export default function LoginScreen({
@@ -29,6 +31,8 @@ export default function LoginScreen({
   onLogin,
   onSignUp,
   onForgotPassword,
+  errorMessage,
+  submitting = false,
 }: LoginScreenProps) {
   const [role, setRole] = useState<Role>(initialRole);
   const [identifier, setIdentifier] = useState('');
@@ -108,12 +112,20 @@ export default function LoginScreen({
             <Text style={styles.link}>Forgot Password?</Text>
           </TouchableOpacity>
 
+          {!!errorMessage && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
+
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.loginButton, submitting && styles.loginButtonDisabled]}
             onPress={() => onLogin?.(role, identifier, password)}
             activeOpacity={0.85}
+            disabled={submitting}
           >
-            <Text style={styles.loginButtonText}>Log In</Text>
+            <Text style={styles.loginButtonText}>{submitting ? 'Logging In…' : 'Log In'}</Text>
           </TouchableOpacity>
 
           <View style={styles.dividerRow}>
@@ -225,6 +237,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#FBEAEA',
+    borderRadius: 8,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.danger,
+    lineHeight: 16,
   },
   loginButtonText: {
     color: colors.white,

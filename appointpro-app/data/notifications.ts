@@ -77,3 +77,26 @@ export function createNotification(
     ...input,
   };
 }
+
+// Shape of a row from the real `notifications` table in Supabase.
+export type DbNotification = {
+  id: string;
+  user_id: string;
+  icon: string;
+  title: string;
+  description: string | null;
+  read: boolean;
+  created_at: string;
+};
+
+// Converts a real DB row into the shape every notification screen expects.
+export function mapDbNotification(row: DbNotification): NotificationItem {
+  return {
+    id: row.id,
+    icon: (row.icon as NotificationItem['icon']) || 'notifications-outline',
+    title: row.title,
+    description: row.description ?? '',
+    time: formatNotificationTime(new Date(row.created_at)),
+    read: row.read,
+  };
+}

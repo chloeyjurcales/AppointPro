@@ -25,12 +25,16 @@ type StudentSignUpScreenProps = {
     password: string;
     confirmPassword: string;
   }) => void;
+  errorMessage?: string | null;
+  submitting?: boolean;
 };
 
 export default function StudentSignUpScreen({
   onBack,
   onLogin,
   onCreateAccount,
+  errorMessage,
+  submitting = false,
 }: StudentSignUpScreenProps) {
   const [fullName, setFullName] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -145,9 +149,17 @@ export default function StudentSignUpScreen({
             </Text>
           </View>
 
+          {!!errorMessage && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
+
           <TouchableOpacity
-            style={styles.createButton}
+            style={[styles.createButton, submitting && styles.createButtonDisabled]}
             onPress={() =>
+              !submitting &&
               onCreateAccount?.({
                 fullName,
                 studentId,
@@ -159,8 +171,11 @@ export default function StudentSignUpScreen({
               })
             }
             activeOpacity={0.85}
+            disabled={submitting}
           >
-            <Text style={styles.createButtonText}>Create Account</Text>
+            <Text style={styles.createButtonText}>
+              {submitting ? 'Creating Account…' : 'Create Account'}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.loginRow}>
@@ -252,6 +267,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+  },
+  createButtonDisabled: {
+    opacity: 0.6,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#FBEAEA',
+    borderRadius: 8,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.danger,
+    lineHeight: 16,
   },
   createButtonText: {
     color: colors.white,

@@ -24,6 +24,7 @@ export type StudentAppointment = {
   category: string;
   room?: string;
   mode: ConsultationMode;
+  meetingLink?: string;
   photoUri?: string;
   isOnline: boolean;
   studentId?: string;

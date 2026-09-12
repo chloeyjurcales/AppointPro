@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Linking,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
@@ -16,12 +9,6 @@ type AboutScreenProps = {
   onBack?: () => void;
   version?: string;
 };
-
-const LINKS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; url?: string }[] = [
-  { key: 'terms', icon: 'document-text-outline', label: 'Terms of Service' },
-  { key: 'privacy', icon: 'shield-checkmark-outline', label: 'Privacy Policy' },
-  { key: 'contact', icon: 'mail-outline', label: 'Contact Us' },
-];
 
 export default function AboutScreen({ onBack, version = '1.0.0' }: AboutScreenProps) {
   return (
@@ -45,24 +32,6 @@ export default function AboutScreen({ onBack, version = '1.0.0' }: AboutScreenPr
           and gives faculty a simple way to publish their availability and
           handle appointment requests — powered by SlotIQ AI.
         </Text>
-
-        <View style={styles.linksCard}>
-          {LINKS.map((item, index) => (
-            <TouchableOpacity
-              key={item.key}
-              style={[
-                styles.linkRow,
-                index < LINKS.length - 1 && styles.linkRowBorder,
-              ]}
-              onPress={() => item.url && Linking.openURL(item.url)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name={item.icon} size={20} color={colors.textDark} style={styles.linkIcon} />
-              <Text style={styles.linkLabel}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          ))}
-        </View>
 
         <Text style={styles.footerText}>© 2026 AppointmentPro. All rights reserved.</Text>
       </ScrollView>
@@ -111,29 +80,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.xl,
     paddingHorizontal: spacing.sm,
-  },
-  linksCard: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    marginBottom: spacing.xl,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-  },
-  linkRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  linkIcon: {
-    marginRight: spacing.md,
-  },
-  linkLabel: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.textDark,
-    fontWeight: '600',
   },
   footerText: {
     fontSize: 11,

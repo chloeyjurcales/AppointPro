@@ -29,6 +29,7 @@ type FacultyProfileMenuScreenProps = {
   photoUri?: string;
   onBack?: () => void;
   onPersonalInformation?: () => void;
+  onMySchedule?: () => void;
   onAbout?: () => void;
   onLogout?: () => void;
   onTabChange?: (tab: FacultyTabKey) => void;
@@ -44,12 +45,14 @@ export default function FacultyProfileMenuScreen({
   photoUri,
   onBack,
   onPersonalInformation,
+  onMySchedule,
   onAbout,
   onLogout,
   onTabChange,
 }: FacultyProfileMenuScreenProps) {
   const menuItems: MenuItem[] = [
     { key: 'personal', icon: 'person-outline', label: 'Personal Information', onPress: onPersonalInformation },
+    { key: 'schedule', icon: 'calendar-outline', label: 'My Schedule', onPress: onMySchedule },
     { key: 'about', icon: 'information-circle-outline', label: 'About AppointmentPro', onPress: onAbout },
   ];
 

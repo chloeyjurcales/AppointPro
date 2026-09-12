@@ -2,8 +2,12 @@ import { useState, type ReactElement } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import AppointmentsView from './AppointmentsView';
-import FacultyView from './FacultyView';
-import NotificationsView from './NotificationsView';
+import FacultyView, { type FacultyTab } from './FacultyView';
+import NotificationsView, {
+  type Notification,
+  INITIAL_NOTIFICATIONS,
+} from './NotificationsView';
+import SettingsView from './SettingsView';
 import './Dashboard.css';
 
 type DashboardProps = {
@@ -16,7 +20,6 @@ export type NavId =
   | 'home'
   | 'appointments'
   | 'faculty'
-  | 'reports'
   | 'notifications'
   | 'settings';
 
@@ -39,16 +42,14 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'home', label: 'Home', icon: HomeIcon },
   { id: 'appointments', label: 'Appointments', icon: AppointmentsIcon },
   { id: 'faculty', label: 'Faculty', icon: FacultyIcon },
-  { id: 'reports', label: 'Reports', icon: ReportsIcon },
-  { id: 'notifications', label: 'Notifications', icon: BellIcon, badge: 2 },
+  { id: 'notifications', label: 'Notifications', icon: BellIcon },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-const STATS = {
-  total: 5,
-  upcoming: 2,
-  completed: 1,
-  cancelled: 0,
+const TODAY_STATS = {
+  appointments: 3,
+  pendingReschedules: 1,
+  inQueue: 2,
 };
 
 const TODAY_SCHEDULE: ScheduleItem[] = [
@@ -101,11 +102,22 @@ export default function Dashboard({
       .slice(0, 2) || 'U';
 
   const [activeNav, setActiveNav] = useState<NavId>('home');
+  const [facultyInitialTab, setFacultyInitialTab] =
+    useState<FacultyTab>('profile');
+  const [notifications, setNotifications] = useState<Notification[]>(
+    INITIAL_NOTIFICATIONS,
+  );
+  const unreadNotificationCount = notifications.filter(
+    (notification) => notification.unread,
+  ).length;
 
-  const handleNavClick = (id: NavId) => {
+  const handleNavClick = (id: NavId, facultyTab: FacultyTab = 'profile') => {
     setActiveNav(id);
+    if (id === 'faculty') setFacultyInitialTab(facultyTab);
     onNavigate?.(id);
   };
+
+  const openFaculty = (tab: FacultyTab) => handleNavClick('faculty', tab);
 
   const handleLogout = async () => {
     if (onLogout) {
@@ -126,23 +138,28 @@ export default function Dashboard({
         </div>
 
         <nav className="db-nav">
-          {NAV_ITEMS.map(({ id, label, icon: Icon, badge }) => (
-            <button
-              key={id}
-              type="button"
-              className={`db-nav-item${
-                activeNav === id ? ' db-nav-item-active' : ''
-              }`}
-              onClick={() => handleNavClick(id)}
-            >
-              <Icon />
-              <span>{label}</span>
+          {NAV_ITEMS.map(({ id, label, icon: Icon, badge }) => {
+            const displayBadge =
+              id === 'notifications' ? unreadNotificationCount : badge;
 
-              {typeof badge === 'number' && badge > 0 && (
-                <span className="db-nav-badge">{badge}</span>
-              )}
-            </button>
-          ))}
+            return (
+              <button
+                key={id}
+                type="button"
+                className={`db-nav-item${
+                  activeNav === id ? ' db-nav-item-active' : ''
+                }`}
+                onClick={() => handleNavClick(id)}
+              >
+                <Icon />
+                <span>{label}</span>
+
+                {typeof displayBadge === 'number' && displayBadge > 0 && (
+                  <span className="db-nav-badge">{displayBadge}</span>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="db-sidebar-footer">
@@ -197,38 +214,56 @@ export default function Dashboard({
                   <p>Here&apos;s your schedule and upcoming appointments.</p>
                 </section>
 
-                <section className="db-stats">
-                  <div className="db-stat-card">
+                <section className="db-stats db-stats-today">
+                  <button
+                    type="button"
+                    className="db-stat-card db-stat-card-clickable"
+                    onClick={() => handleNavClick('appointments')}
+                  >
                     <div className="db-stat-icon">
                       <AppointmentsIcon />
                     </div>
-                    <span className="db-stat-value">{STATS.total}</span>
-                    <span className="db-stat-label">Total Appointments</span>
-                  </div>
+                    <span className="db-stat-value">
+                      {TODAY_STATS.appointments}
+                    </span>
+                    <span className="db-stat-label">Appointments</span>
+                  </button>
 
-                  <div className="db-stat-card">
+                  <button
+                    type="button"
+                    className="db-stat-card db-stat-card-clickable"
+                    onClick={() => handleNavClick('appointments')}
+                  >
                     <div className="db-stat-icon">
                       <ClockIcon />
                     </div>
-                    <span className="db-stat-value">{STATS.upcoming}</span>
-                    <span className="db-stat-label">Upcoming</span>
-                  </div>
+                    <span className="db-stat-value">
+                      {TODAY_STATS.pendingReschedules}
+                    </span>
+                    <span className="db-stat-label">
+                      Pending
+                      <br />
+                      Reschedules
+                    </span>
+                  </button>
 
-                  <div className="db-stat-card">
+                  <button
+                    type="button"
+                    className="db-stat-card db-stat-card-clickable"
+                    onClick={() => handleNavClick('appointments')}
+                  >
                     <div className="db-stat-icon">
-                      <CheckIcon />
+                      <QueueIcon />
                     </div>
-                    <span className="db-stat-value">{STATS.completed}</span>
-                    <span className="db-stat-label">Completed</span>
-                  </div>
-
-                  <div className="db-stat-card">
-                    <div className="db-stat-icon">
-                      <CancelIcon />
-                    </div>
-                    <span className="db-stat-value">{STATS.cancelled}</span>
-                    <span className="db-stat-label">Cancelled</span>
-                  </div>
+                    <span className="db-stat-value">
+                      {TODAY_STATS.inQueue}
+                    </span>
+                    <span className="db-stat-label">
+                      In
+                      <br />
+                      Queue
+                    </span>
+                  </button>
                 </section>
 
                 <section className="db-schedule-card">
@@ -261,6 +296,68 @@ export default function Dashboard({
                     ))}
                   </ul>
                 </section>
+
+                <section className="db-quick-actions">
+                  <h2>Quick Actions</h2>
+
+                  <div className="db-quick-actions-grid">
+                    <button
+                      type="button"
+                      className="db-quick-action"
+                      onClick={() => handleNavClick('appointments')}
+                    >
+                      <span
+                        className="db-quick-action-icon"
+                        style={{ background: '#5B7FDE' }}
+                      >
+                        <AppointmentsIcon />
+                      </span>
+                      <span>Appointments</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="db-quick-action"
+                      onClick={() => openFaculty('settings')}
+                    >
+                      <span
+                        className="db-quick-action-icon"
+                        style={{ background: '#3FB68A' }}
+                      >
+                        <CheckIcon />
+                      </span>
+                      <span>Availability</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="db-quick-action"
+                      onClick={() => handleNavClick('appointments')}
+                    >
+                      <span
+                        className="db-quick-action-icon"
+                        style={{ background: '#F0C93A' }}
+                      >
+                        <QueueIcon />
+                      </span>
+                      <span>Queue</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="db-quick-action"
+                      onClick={() => handleNavClick('notifications')}
+                    >
+                      <span
+                        className="db-quick-action-icon"
+                        style={{ background: 'var(--brand-500, #7a0e2c)' }}
+                      >
+                        <BellIcon />
+                      </span>
+                      <span>Notifications</span>
+                    </button>
+                  </div>
+                </section>
               </div>
 
               <div className="db-right-rail">
@@ -282,29 +379,24 @@ export default function Dashboard({
 
           {activeNav === 'faculty' && (
             <div className="db-main-col">
-              <FacultyView />
+              <FacultyView initialTab={facultyInitialTab} />
             </div>
           )}
 
           {activeNav === 'notifications' && (
             <div className="db-main-col">
-              <NotificationsView />
+              <NotificationsView
+                notifications={notifications}
+                onNotificationsChange={setNotifications}
+              />
             </div>
           )}
 
-          {activeNav !== 'home' &&
-            activeNav !== 'appointments' &&
-            activeNav !== 'faculty' &&
-            activeNav !== 'notifications' && (
-              <div className="db-main-col">
-                <div className="db-placeholder">
-                  <h1>
-                    {NAV_ITEMS.find((item) => item.id === activeNav)?.label}
-                  </h1>
-                  <p>This section is coming soon.</p>
-                </div>
-              </div>
-            )}
+          {activeNav === 'settings' && (
+            <div className="db-main-col">
+              <SettingsView />
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -512,19 +604,6 @@ function FacultyIcon() {
   );
 }
 
-function ReportsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M4 20V10M11 20V4M18 20v-7"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function BellIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -647,20 +726,21 @@ function CheckIcon() {
   );
 }
 
-function CancelIcon() {
+function QueueIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.6" />
       <circle
-        cx="12"
-        cy="12"
-        r="9"
+        cx="17"
+        cy="9"
+        r="2.2"
         stroke="currentColor"
         strokeWidth="1.6"
       />
       <path
-        d="m9 9 6 6M15 9l-6 6"
+        d="M3.5 19c.8-3.4 3.2-5.2 5.8-5.2s5 1.8 5.8 5.2M15.3 14.1c2 .4 3.4 1.9 4 4.4"
         stroke="currentColor"
-        strokeWidth="1.7"
+        strokeWidth="1.6"
         strokeLinecap="round"
       />
     </svg>

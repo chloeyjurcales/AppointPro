@@ -12,9 +12,9 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';
 
-type FacultyStatus = 'available' | 'unavailable';
+export type FacultyStatus = 'available' | 'unavailable';
 
-type FacultyMember = {
+export type FacultyMember = {
   id: string;
   name: string;
   role: string;
@@ -22,60 +22,24 @@ type FacultyMember = {
   status: FacultyStatus;
 };
 
-const FACULTY: FacultyMember[] = [
-  {
-    id: '1',
-    name: 'Prof. Maria Santos',
-    role: 'Instructor',
-    department: 'Mathematics',
-    status: 'available',
-  },
-  {
-    id: '2',
-    name: 'Dr. Juan Dela Cruz',
-    role: 'Instructor',
-    department: 'Computer Studies',
-    status: 'available',
-  },
-  {
-    id: '3',
-    name: 'Dr. Juan Dela Cruz',
-    role: 'Instructor',
-    department: 'Computer Studies',
-    status: 'available',
-  },
-  {
-    id: '4',
-    name: 'Dr. Juan Dela Cruz',
-    role: 'Instructor',
-    department: 'Computer Studies',
-    status: 'unavailable',
-  },
-  {
-    id: '5',
-    name: 'Dr. Juan Dela Cruz',
-    role: 'Instructor',
-    department: 'Computer Studies',
-    status: 'available',
-  },
-];
-
 type DirectoryScreenProps = {
+  faculty?: FacultyMember[];
+  loading?: boolean;
   onMenuPress?: () => void;
-  onFilterPress?: () => void;
   onSelectFaculty?: (faculty: FacultyMember) => void;
   onTabChange?: (tab: TabKey) => void;
 };
 
 export default function DirectoryScreen({
+  faculty = [],
+  loading = false,
   onMenuPress,
-  onFilterPress,
   onSelectFaculty,
   onTabChange,
 }: DirectoryScreenProps) {
   const [query, setQuery] = useState('');
 
-  const filtered = FACULTY.filter((f) =>
+  const filtered = faculty.filter((f) =>
     f.name.toLowerCase().includes(query.toLowerCase())
   );
 
@@ -100,15 +64,24 @@ export default function DirectoryScreen({
             onChangeText={setQuery}
           />
         </View>
-        <TouchableOpacity style={styles.filterButton} onPress={onFilterPress}>
-          <Ionicons name="options-outline" size={18} color={colors.textDark} />
-        </TouchableOpacity>
       </View>
 
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={28} color={colors.textMuted} />
+            <Text style={styles.emptyStateText}>
+              {loading
+                ? 'Loading faculty…'
+                : query
+                ? 'No faculty match your search.'
+                : 'No faculty have signed up yet.'}
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
@@ -186,17 +159,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textDark,
   },
-  filterButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: colors.inputBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+    flexGrow: 1,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingTop: spacing.xl,
+  },
+  emptyStateText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
   },
   card: {
     flexDirection: 'row',

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import './NotificationsView.css';
 
-type NotificationType =
+export type NotificationType =
   | 'appointment'
   | 'reminder'
   | 'system'
   | 'success';
 
-type Notification = {
+export type Notification = {
   id: string;
   type: NotificationType;
   title: string;
@@ -16,7 +16,7 @@ type Notification = {
   unread: boolean;
 };
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
+export const INITIAL_NOTIFICATIONS: Notification[] = [
   {
     id: '1',
     type: 'appointment',
@@ -64,11 +64,15 @@ const INITIAL_NOTIFICATIONS: Notification[] = [
   },
 ];
 
-export default function NotificationsView() {
-  const [notifications, setNotifications] = useState(
-    INITIAL_NOTIFICATIONS
-  );
+type NotificationsViewProps = {
+  notifications: Notification[];
+  onNotificationsChange: React.Dispatch<React.SetStateAction<Notification[]>>;
+};
 
+export default function NotificationsView({
+  notifications,
+  onNotificationsChange: setNotifications,
+}: NotificationsViewProps) {
   // Selection mode is OFF by default
   const [selectionMode, setSelectionMode] = useState(false);
 

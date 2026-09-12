@@ -21,6 +21,7 @@ type FacultyActionSuccessScreenProps = {
   location?: string;
   mode?: string;
   reason?: string;
+  meetingLink?: string;
   referenceNo?: string;
   onBack?: () => void;
   onBackToDirectory?: () => void;
@@ -61,6 +62,7 @@ export default function FacultyActionSuccessScreen({
   location = 'Room 305, CHMC Main Campus',
   mode = 'Face-to-Face',
   reason,
+  meetingLink,
   referenceNo = 'APP-2026-000791',
   onBack,
   onBackToDirectory,
@@ -115,6 +117,14 @@ export default function FacultyActionSuccessScreen({
             <Ionicons name="people-outline" size={16} color={colors.primary} style={styles.detailIcon} />
             <Text style={styles.detailText}>{mode}</Text>
           </View>
+          {!!meetingLink && (
+            <View style={styles.detailRow}>
+              <Ionicons name="link-outline" size={16} color={colors.primary} style={styles.detailIcon} />
+              <Text style={[styles.detailText, styles.detailTextFlex]} numberOfLines={1}>
+                {meetingLink}
+              </Text>
+            </View>
+          )}
 
           {!!reason && (
             <>
@@ -222,6 +232,7 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
   detailIcon: { marginRight: spacing.sm },
   detailText: { fontSize: 12, color: colors.textDark },
+  detailTextFlex: { flex: 1 },
   reasonLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 4, fontWeight: '600' },
   reasonText: { fontSize: 12, color: colors.textDark, lineHeight: 17 },
   refLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 2 },

@@ -5,7 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';
 import FacultyBottomTabBar, { FacultyTabKey } from '../components/FacultyBottomTabBar';
-import { QueueEntry, AVERAGE_WAIT_MINUTES_PER_STUDENT } from '../data/queue';
+import {
+  QueueEntry,
+  AVERAGE_WAIT_MINUTES_PER_STUDENT,
+  getRemainingSeconds,
+  getEstimatedWaitSeconds,
+  formatCountdown,
+} from '../data/queue';
 
 type QueueScreenProps = {
   queue: QueueEntry[];
@@ -17,6 +23,9 @@ type QueueScreenProps = {
   role?: 'student' | 'faculty';
   doctorName?: string;
   doctorDepartment?: string;
+  // Drives every live countdown on this screen — pass the same ticking
+  // clock the rest of the app uses so numbers move in real time.
+  now?: Date;
   onBack?: () => void;
   onReschedule?: () => void;
   onCancelAppointment?: () => void;
@@ -34,6 +43,7 @@ export default function QueueScreen({
   role = 'student',
   doctorName = 'Dr. Juan Dela Cruz',
   doctorDepartment,
+  now = new Date(),
   onBack,
   onReschedule,
   onCancelAppointment,
@@ -45,8 +55,18 @@ export default function QueueScreen({
   const position = currentQueueId
     ? queue.findIndex((q) => q.id === currentQueueId) + 1
     : null;
-  const estimatedWait = position ? (position - 1) * AVERAGE_WAIT_MINUTES_PER_STUDENT : null;
+  const isNowServing = position === 1;
+  // Seconds remaining in your own session (if you're #1) or seconds until
+  // it becomes your turn (if you're further back) — both tick down live.
+  const myCountdownSeconds =
+    position && position > 0
+      ? isNowServing
+        ? getRemainingSeconds(queue[0], now)
+        : getEstimatedWaitSeconds(queue, position - 1, now)
+      : null;
+
   const nowServing = queue[0] ?? null;
+  const nowServingCountdownSeconds = nowServing ? getRemainingSeconds(nowServing, now) : 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -100,6 +120,9 @@ export default function QueueScreen({
             {nowServing ? (
               <>
                 <Text style={styles.nowServingName}>{nowServing.studentName}</Text>
+                <Text style={styles.nowServingCountdown}>
+                  {formatCountdown(nowServingCountdownSeconds)} remaining
+                </Text>
                 <TouchableOpacity
                   style={styles.doneButton}
                   onPress={onCompleteCurrent}
@@ -120,7 +143,9 @@ export default function QueueScreen({
                 <Text style={styles.yourQueueLabel}>Your Queue Number</Text>
                 <Text style={styles.yourQueueNumber}>#{position}</Text>
                 <Text style={styles.yourQueueWait}>
-                  Estimated wait: {estimatedWait} min{estimatedWait === 1 ? '' : 's'}
+                  {isNowServing
+                    ? `Your appointment is now — ${formatCountdown(myCountdownSeconds ?? 0)} remaining`
+                    : `Estimated wait: ${formatCountdown(myCountdownSeconds ?? 0)}`}
                 </Text>
               </View>
             )}
@@ -159,21 +184,25 @@ export default function QueueScreen({
           ) : (
             queue.map((entry, index) => {
               const isYou = !isFaculty && entry.id === currentQueueId;
-              const isNowServing = isFaculty && index === 0;
+              const isEntryNowServing = index === 0;
+              const rowSeconds = isEntryNowServing
+                ? getRemainingSeconds(entry, now)
+                : getEstimatedWaitSeconds(queue, index, now);
               return (
                 <View
                   key={entry.id}
                   style={[
                     styles.queueRow,
                     index < queue.length - 1 && styles.queueRowBorder,
-                    (isYou || isNowServing) && styles.queueRowYou,
+                    (isYou || (isFaculty && isEntryNowServing)) && styles.queueRowYou,
                   ]}
                 >
                   <Text style={styles.queuePosition}>#{index + 1}</Text>
                   <Text style={styles.queueName}>
                     {isYou ? 'You' : entry.studentName}
-                    {isNowServing ? '  ·  Now Serving' : ''}
+                    {isFaculty && isEntryNowServing ? '  ·  Now Serving' : ''}
                   </Text>
+                  <Text style={styles.queueRowTime}>{formatCountdown(rowSeconds)}</Text>
                 </View>
               );
             })
@@ -309,6 +338,8 @@ const styles = StyleSheet.create({
   yourQueueWait: {
     fontSize: 12,
     color: colors.white,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
   },
   nowServingCard: {
     alignItems: 'center',
@@ -327,8 +358,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.white,
-    marginBottom: spacing.md,
     textAlign: 'center',
+  },
+  nowServingCountdown: {
+    fontSize: 13,
+    color: colors.white,
+    marginTop: 4,
+    marginBottom: spacing.md,
   },
   nowServingEmpty: {
     fontSize: 13,
@@ -423,7 +459,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   queueRowYou: {
-    backgroundColor: colors.infoBg,
+    backgroundColor: colors.tabInactiveBg,
     marginHorizontal: -spacing.md,
     paddingHorizontal: spacing.md,
     borderRadius: 8,
@@ -435,9 +471,15 @@ const styles = StyleSheet.create({
     width: 30,
   },
   queueName: {
+    flex: 1,
     fontSize: 13,
     color: colors.textDark,
     fontWeight: '600',
+  },
+  queueRowTime: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   emptyText: {
     fontSize: 12,

@@ -13,8 +13,8 @@ type FacultyBottomTabBarProps = {
 
 const TABS: { key: FacultyTabKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'home', label: 'Home', icon: 'home' },
-  { key: 'appointment', label: 'Appointment', icon: 'calendar-outline' },
-  { key: 'directory', label: 'Directory', icon: 'grid-outline' },
+  { key: 'appointment', label: 'Availability', icon: 'grid-outline' },
+  { key: 'directory', label: 'Appointments', icon: 'calendar-outline' },
   { key: 'notifications', label: 'Notifications', icon: 'notifications-outline' },
   { key: 'profile', label: 'Profile', icon: 'person-outline' },
 ];

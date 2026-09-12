@@ -19,6 +19,10 @@ import {
 
 type FacultyProfileScreenProps = {
   scheduleByDate: Record<number, ScheduleSlot[]>;
+  facultyName?: string;
+  facultyDepartment?: string;
+  facultyRole?: string;
+  facultyStatus?: 'available' | 'unavailable';
   onBack?: () => void;
   onMorePress?: () => void;
   onSelectSlot?: (date: number, slot: ScheduleSlot) => void;
@@ -29,6 +33,10 @@ type FacultyProfileScreenProps = {
 
 export default function FacultyProfileScreen({
   scheduleByDate,
+  facultyName = 'Dr. Juan Dela Cruz',
+  facultyDepartment = 'Computer Studies',
+  facultyRole = 'Instructor',
+  facultyStatus = 'available',
   onBack,
   onMorePress,
   onSelectSlot,
@@ -64,9 +72,13 @@ export default function FacultyProfileScreen({
             <FontAwesome5 name="user-tie" size={22} color={colors.white} />
           </View>
           <View>
-            <Text style={styles.name}>Dr. Juan Dela Cruz</Text>
-            <Text style={styles.department}>Computer Studies</Text>
-            <Text style={styles.status}>Available</Text>
+            <Text style={styles.name}>{facultyName}</Text>
+            <Text style={styles.department}>
+              {facultyRole} · {facultyDepartment}
+            </Text>
+            <Text style={styles.status}>
+              {facultyStatus === 'available' ? 'Available' : 'Unavailable'}
+            </Text>
           </View>
         </View>
 

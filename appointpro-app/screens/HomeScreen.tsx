@@ -10,6 +10,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import BottomTabBar, { TabKey } from '../components/BottomTabBar';
+import {
+  QueueEntry,
+  AVERAGE_WAIT_MINUTES_PER_STUDENT,
+  getRemainingSeconds,
+  getEstimatedWaitSeconds,
+  formatCountdown,
+} from '../data/queue';
 
 type NotificationItem = {
   id: string;
@@ -54,12 +61,12 @@ type HomeScreenProps = {
   onViewAppointments?: () => void;
   onViewNotifications?: () => void;
   onViewQueue?: () => void;
-  // Real walk-in queue numbers for this student. `queuePosition` /
-  // `queueEstimatedWaitMinutes` are null when the student hasn't joined
-  // the queue yet, in which case general queue stats are shown instead.
-  queueLength?: number;
-  queuePosition?: number | null;
-  queueEstimatedWaitMinutes?: number | null;
+  // Live queue state — position and countdown are derived from this
+  // instead of being passed in as precomputed numbers, so the Home
+  // screen ticks down in real time right alongside the Queue screen.
+  queue?: QueueEntry[];
+  currentQueueId?: string | null;
+  now?: Date;
   averageWaitMinutes?: number;
   // Only show the Queue card once the student's booked appointment
   // window has actually started (e.g. a 9-11 booking only shows it
@@ -79,13 +86,23 @@ export default function HomeScreen({
   onViewAppointments,
   onViewNotifications,
   onViewQueue,
-  queueLength = 0,
-  queuePosition = null,
-  queueEstimatedWaitMinutes = null,
-  averageWaitMinutes = 10,
+  queue = [],
+  currentQueueId = null,
+  now = new Date(),
+  averageWaitMinutes = AVERAGE_WAIT_MINUTES_PER_STUDENT,
   showQueueCard = false,
   onTabChange,
 }: HomeScreenProps) {
+  const queuePosition = currentQueueId
+    ? queue.findIndex((entry) => entry.id === currentQueueId) + 1
+    : null;
+  const isNowServing = queuePosition === 1;
+  const queueCountdownSeconds =
+    queuePosition && queuePosition > 0
+      ? queuePosition === 1
+        ? getRemainingSeconds(queue[0], now)
+        : getEstimatedWaitSeconds(queue, queuePosition - 1, now)
+      : null;
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -185,15 +202,19 @@ export default function HomeScreen({
                 </View>
                 <View style={styles.queueStatDivider} />
                 <View style={styles.queueStatItem}>
-                  <Text style={styles.queueLabel}>Est. Wait</Text>
-                  <Text style={styles.queueValue}>{queueEstimatedWaitMinutes} min</Text>
+                  <Text style={styles.queueLabel}>
+                    {isNowServing ? 'Time Remaining' : 'Est. Wait'}
+                  </Text>
+                  <Text style={styles.queueValue}>
+                    {formatCountdown(queueCountdownSeconds ?? 0)}
+                  </Text>
                 </View>
               </View>
             ) : (
               <View style={styles.queueStatsRow}>
                 <View style={styles.queueStatItem}>
                   <Text style={styles.queueLabel}>Waiting</Text>
-                  <Text style={styles.queueValue}>{queueLength}</Text>
+                  <Text style={styles.queueValue}>{queue.length}</Text>
                 </View>
                 <View style={styles.queueStatDivider} />
                 <View style={styles.queueStatItem}>

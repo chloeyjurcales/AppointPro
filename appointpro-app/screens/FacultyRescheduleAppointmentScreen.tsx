@@ -36,6 +36,7 @@ type FacultyRescheduleAppointmentScreenProps = {
     slot: ScheduleSlot;
     durationMinutes: number;
     reason: string;
+    meetingLink?: string;
   }) => void;
 };
 
@@ -62,15 +63,20 @@ export default function FacultyRescheduleAppointmentScreen({
   const [selectedDate, setSelectedDate] = useState(firstAvailableDate);
   const [selectedSlotId, setSelectedSlotId] = useState<string | undefined>();
   const [reason, setReason] = useState('');
+  const [meetingLink, setMeetingLink] = useState('');
 
   const slotsForDate = scheduleByDate[selectedDate] ?? [];
   const selectedDay = WEEK_DAYS.find((d) => d.date === selectedDate);
   const selectedSlot = slotsForDate.find((s) => s.id === selectedSlotId);
+  const isNewSlotOnline = selectedSlot?.mode === 'Online';
 
   const slotFits = (slot: ScheduleSlot) =>
     !isSlotFull(slot) && getFittingDurationOptions(slot).some((o) => o.minutes === durationMinutes);
 
-  const canConfirm = reason.trim().length > 0 && !!selectedSlot;
+  const canConfirm =
+    reason.trim().length > 0 &&
+    !!selectedSlot &&
+    (!isNewSlotOnline || meetingLink.trim().length > 0);
 
   const handleConfirm = () => {
     if (!selectedSlot || !selectedDay || !canConfirm) return;
@@ -80,6 +86,7 @@ export default function FacultyRescheduleAppointmentScreen({
       slot: selectedSlot,
       durationMinutes,
       reason: reason.trim(),
+      meetingLink: isNewSlotOnline ? meetingLink.trim() : undefined,
     });
   };
 
@@ -213,6 +220,29 @@ export default function FacultyRescheduleAppointmentScreen({
               );
             })
           )}
+
+          {isNewSlotOnline && (
+            <>
+              <Text style={styles.sectionTitle}>New Meeting Link</Text>
+              <View style={styles.linkInputWrap}>
+                <Ionicons name="link-outline" size={16} color={colors.textMuted} />
+                <TextInput
+                  style={styles.linkInput}
+                  placeholder="e.g. https://meet.google.com/abc-defg-hij"
+                  placeholderTextColor="#9B9B9B"
+                  value={meetingLink}
+                  onChangeText={setMeetingLink}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                />
+              </View>
+              <Text style={styles.linkHint}>
+                This appointment moved to an online slot — the student needs a fresh
+                link since the old one no longer applies.
+              </Text>
+            </>
+          )}
         </ScrollView>
 
         <View style={styles.footer}>
@@ -342,6 +372,27 @@ const styles = StyleSheet.create({
   slotTextDisabled: { color: colors.textMuted },
   noFitTag: { fontSize: 10, fontWeight: '700', color: colors.danger },
   emptyText: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.md },
+  linkInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    height: 46,
+  },
+  linkInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textDark,
+  },
+  linkHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+    lineHeight: 15,
+  },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm },
   confirmButton: {
     backgroundColor: colors.primary,
