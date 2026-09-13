@@ -31,6 +31,16 @@ export type StudentAppointment = {
   email?: string;
   department?: string;
   yearLevel?: string;
+  // The real `profiles.id` (auth user id) of the student who booked this
+  // appointment — distinct from `studentId` above (their school ID
+  // number). This is what notifications must target.
+  studentUserId?: string;
+  // Raw values kept alongside the display-formatted ones above so other
+  // screens (e.g. FacultyHomeScreen's "Today" stats/schedule) can
+  // filter/sort by real date and time without re-parsing labels.
+  dateKey?: string; // 'YYYY-MM-DD'
+  startTime24?: string; // 'HH:MM:SS'
+  startTimeLabel?: string; // e.g. '10:00 AM' (no end time)
 };
 
 export const DEFAULT_APPOINTMENTS: StudentAppointment[] = [
@@ -94,6 +104,79 @@ export const DEFAULT_APPOINTMENTS: StudentAppointment[] = [
     yearLevel: '1st Year',
   },
 ];
+
+// Shape of an `appointments` row (joined with the booking student's own
+// students/profiles row) as returned by Supabase for the Directory list.
+export type DbFacultyAppointment = {
+  id: string;
+  // The booking student's real `profiles.id` — needed to send them a
+  // real-time notification when this appointment changes.
+  student_id: string;
+  date: string; // 'YYYY-MM-DD'
+  start_time: string; // 'HH:MM:SS'
+  end_time: string;
+  category: string | null;
+  mode: 'Face-to-Face' | 'Online';
+  location: string;
+  status: 'upcoming' | 'completed' | 'canceled';
+  meeting_link: string | null;
+  students: {
+    student_id: string;
+    department: string | null;
+    year_level: string | null;
+    profiles:
+      | { full_name: string; email: string }
+      | { full_name: string; email: string }[]
+      | null;
+  } | null;
+};
+
+function formatFacultyApptDate(dateKey: string): string {
+  const d = new Date(dateKey + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatFacultyApptTime12h(time24: string): string {
+  const [hStr, mStr] = time24.split(':');
+  let hour = parseInt(hStr, 10);
+  const minute = parseInt(mStr, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${minute.toString().padStart(2, '0')} ${period}`;
+}
+
+// Converts a real `appointments` row into the shape this screen (and the
+// reschedule/cancel/student-profile screens downstream) already expects.
+export function mapDbFacultyAppointment(row: DbFacultyAppointment): StudentAppointment {
+  const profile = Array.isArray(row.students?.profiles)
+    ? row.students?.profiles[0]
+    : row.students?.profiles;
+  const isOnline = row.mode === 'Online';
+
+  return {
+    id: row.id,
+    studentName: profile?.full_name ?? 'Unknown Student',
+    status: row.status === 'canceled' ? 'cancelled' : row.status,
+    date: formatFacultyApptDate(row.date),
+    time: `${formatFacultyApptTime12h(row.start_time)} - ${formatFacultyApptTime12h(row.end_time)}`,
+    category: row.category ?? 'Consultation',
+    room: isOnline ? undefined : row.location,
+    mode: isOnline ? 'online' : 'face-to-face',
+    meetingLink: row.meeting_link ?? undefined,
+    // No presence/live-status tracking in the DB yet, so this always
+    // renders without the green "online" dot rather than faking one.
+    isOnline: false,
+    studentId: row.students?.student_id,
+    studentUserId: row.student_id,
+    email: profile?.email,
+    department: row.students?.department ?? undefined,
+    yearLevel: row.students?.year_level ?? undefined,
+    dateKey: row.date,
+    startTime24: row.start_time,
+    startTimeLabel: formatFacultyApptTime12h(row.start_time),
+  };
+}
 
 const TABS: { key: AppointmentStatus; label: string }[] = [
   { key: 'upcoming', label: 'Upcoming' },

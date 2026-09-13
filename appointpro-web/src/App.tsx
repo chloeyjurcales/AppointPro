@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
+import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import LoginPage from './pages/LoginPage'
 import FacultySignUpPage from './pages/FacultySignUpPage'
@@ -7,37 +7,10 @@ import Dashboard from './pages/Dashboard'
 
 type AuthView = 'login' | 'signup'
 
-// Fallback "logged in" state used when the faculty member hits Log In
-// without typing an email/password (see LoginPage's onDemoLogin). It's
-// shaped like a real Supabase Session/User so the rest of the app (which
-// only ever reads session.user.email / user_metadata) can't tell the
-// difference.
-const DEMO_USER: User = {
-  id: 'demo-faculty-user',
-  aud: 'authenticated',
-  role: 'authenticated',
-  email: 'juan.delacruz@demo.appointpro.edu',
-  app_metadata: {},
-  user_metadata: { full_name: 'Dr. Juan Dela Cruz', role: 'faculty' },
-  created_at: new Date().toISOString(),
-}
-
-const DEMO_SESSION: Session = {
-  access_token: 'demo-access-token',
-  refresh_token: 'demo-refresh-token',
-  expires_in: 3600,
-  expires_at: Math.floor(Date.now() / 1000) + 3600,
-  token_type: 'bearer',
-  user: DEMO_USER,
-}
-
 function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
   const [authView, setAuthView] = useState<AuthView>('login')
-  // True while the person is browsing the demo/no-credentials session
-  // instead of a real Supabase-authenticated one.
-  const [isDemoSession, setIsDemoSession] = useState(false)
 
   useEffect(() => {
     // Restore an existing session on page load/refresh...
@@ -60,15 +33,15 @@ function App() {
     return null
   }
 
-  if (session || isDemoSession) {
+  // Only a real, Supabase-authenticated session gets into the app. Anyone
+  // who hasn't signed in — or typed the wrong email/password — stays on
+  // the login screen.
+  if (session) {
     return (
       <Dashboard
-        session={session ?? DEMO_SESSION}
+        session={session}
         onLogout={async () => {
-          if (session) {
-            await supabase.auth.signOut()
-          }
-          setIsDemoSession(false)
+          await supabase.auth.signOut()
         }}
       />
     )
@@ -98,11 +71,6 @@ function App() {
       onSuccess={() => {
         // onAuthStateChange above already updates `session` the moment
         // Supabase signs the user in, which re-renders into <Dashboard>.
-      }}
-      onDemoLogin={() => {
-        // No credentials were entered — drop straight into the dashboard
-        // with a local demo session instead of calling Supabase.
-        setIsDemoSession(true)
       }}
     />
   )

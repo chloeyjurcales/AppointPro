@@ -33,6 +33,10 @@ type FacultyProfileMenuScreenProps = {
   onAbout?: () => void;
   onLogout?: () => void;
   onTabChange?: (tab: FacultyTabKey) => void;
+  // Lets the faculty member tap their avatar to pick a new photo from
+  // their device and upload it. Omit to render a static, non-editable
+  // avatar.
+  onChangePhoto?: () => void;
 };
 
 export default function FacultyProfileMenuScreen({
@@ -49,6 +53,7 @@ export default function FacultyProfileMenuScreen({
   onAbout,
   onLogout,
   onTabChange,
+  onChangePhoto,
 }: FacultyProfileMenuScreenProps) {
   const menuItems: MenuItem[] = [
     { key: 'personal', icon: 'person-outline', label: 'Personal Information', onPress: onPersonalInformation },
@@ -64,7 +69,12 @@ export default function FacultyProfileMenuScreen({
             <Ionicons name="arrow-back" size={22} color={colors.white} />
           </TouchableOpacity>
 
-          <View style={styles.avatarWrap}>
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={onChangePhoto}
+            activeOpacity={onChangePhoto ? 0.75 : 1}
+            disabled={!onChangePhoto}
+          >
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.avatarImage} />
             ) : (
@@ -72,7 +82,12 @@ export default function FacultyProfileMenuScreen({
                 <Feather name="user" size={40} color={colors.white} />
               </View>
             )}
-          </View>
+            {onChangePhoto && (
+              <View style={styles.avatarEditBadge}>
+                <Feather name="camera" size={13} color={colors.white} />
+              </View>
+            )}
+          </TouchableOpacity>
 
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.department}>{department}</Text>
@@ -150,6 +165,20 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     marginBottom: spacing.md,
+    position: 'relative',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: spacing.md - 2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarImage: {
     width: 100,

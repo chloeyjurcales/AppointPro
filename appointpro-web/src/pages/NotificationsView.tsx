@@ -16,62 +16,21 @@ export type Notification = {
   unread: boolean;
 };
 
-export const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    type: 'appointment',
-    title: 'Appointment Confirmed',
-    message:
-      'Your appointment with Dr. Maria Santos has been confirmed for tomorrow at 10:00 AM.',
-    time: '10 minutes ago',
-    unread: true,
-  },
-  {
-    id: '2',
-    type: 'reminder',
-    title: 'Appointment Reminder',
-    message:
-      'You have an upcoming appointment tomorrow at 10:00 AM.',
-    time: '1 hour ago',
-    unread: true,
-  },
-  {
-    id: '3',
-    type: 'success',
-    title: 'Appointment Completed',
-    message:
-      'Your appointment with Dr. Juan Dela Cruz has been marked as completed.',
-    time: '3 hours ago',
-    unread: false,
-  },
-  {
-    id: '4',
-    type: 'system',
-    title: 'Profile Updated',
-    message:
-      'Your profile information has been successfully updated.',
-    time: 'Yesterday',
-    unread: false,
-  },
-  {
-    id: '5',
-    type: 'appointment',
-    title: 'New Appointment Request',
-    message:
-      'You received a new appointment request. Please review it.',
-    time: 'Yesterday',
-    unread: false,
-  },
-];
-
 type NotificationsViewProps = {
   notifications: Notification[];
-  onNotificationsChange: React.Dispatch<React.SetStateAction<Notification[]>>;
+  // All three of these are backed by real writes to the `notifications`
+  // table in Supabase (see Dashboard.tsx) — this component only owns the
+  // transient "which rows are selected" UI state below.
+  onMarkAllRead: () => void;
+  onMarkSelectedRead: (ids: string[]) => void;
+  onDeleteSelected: (ids: string[]) => void;
 };
 
 export default function NotificationsView({
   notifications,
-  onNotificationsChange: setNotifications,
+  onMarkAllRead,
+  onMarkSelectedRead,
+  onDeleteSelected,
 }: NotificationsViewProps) {
   // Selection mode is OFF by default
   const [selectionMode, setSelectionMode] = useState(false);
@@ -119,42 +78,23 @@ export default function NotificationsView({
     }
   };
 
-  // Delete selected notifications
+  // Delete selected notifications — actually deletes the rows in Supabase.
   const handleDelete = () => {
     if (selectedIds.length === 0) return;
-
-    setNotifications((current) =>
-      current.filter(
-        (notification) => !selectedIds.includes(notification.id)
-      )
-    );
-
+    onDeleteSelected(selectedIds);
     setSelectedIds([]);
     setSelectionMode(false);
   };
 
-  // Mark all as read
+  // Mark all as read — updates every unread row for this faculty member.
   const markAllAsRead = () => {
-    setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        unread: false,
-      }))
-    );
+    onMarkAllRead();
   };
 
-  // Mark selected notifications as read
+  // Mark selected notifications as read.
   const markSelectedAsRead = () => {
     if (selectedIds.length === 0) return;
-
-    setNotifications((current) =>
-      current.map((notification) =>
-        selectedIds.includes(notification.id)
-          ? { ...notification, unread: false }
-          : notification
-      )
-    );
-
+    onMarkSelectedRead(selectedIds);
     setSelectedIds([]);
     setSelectionMode(false);
   };

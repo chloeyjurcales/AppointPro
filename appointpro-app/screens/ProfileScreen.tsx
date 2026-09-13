@@ -32,6 +32,9 @@ type ProfileScreenProps = {
   onAbout?: () => void;
   onLogout?: () => void;
   onTabChange?: (tab: TabKey) => void;
+  // Lets the student tap their avatar to pick a new photo from their
+  // device and upload it. Omit to render a static, non-editable avatar.
+  onChangePhoto?: () => void;
 };
 
 export default function ProfileScreen({
@@ -47,6 +50,7 @@ export default function ProfileScreen({
   onAbout,
   onLogout,
   onTabChange,
+  onChangePhoto,
 }: ProfileScreenProps) {
   const menuItems: MenuItem[] = [
     { key: 'personal', icon: 'person-outline', label: 'Personal Information', onPress: onPersonalInformation },
@@ -61,7 +65,12 @@ export default function ProfileScreen({
             <Ionicons name="arrow-back" size={22} color={colors.white} />
           </TouchableOpacity>
 
-          <View style={styles.avatarWrap}>
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={onChangePhoto}
+            activeOpacity={onChangePhoto ? 0.75 : 1}
+            disabled={!onChangePhoto}
+          >
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.avatarImage} />
             ) : (
@@ -69,7 +78,12 @@ export default function ProfileScreen({
                 <Feather name="user" size={40} color={colors.white} />
               </View>
             )}
-          </View>
+            {onChangePhoto && (
+              <View style={styles.avatarEditBadge}>
+                <Feather name="camera" size={13} color={colors.white} />
+              </View>
+            )}
+          </TouchableOpacity>
 
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.role}>{role}</Text>
@@ -147,6 +161,20 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     marginBottom: spacing.md,
+    position: 'relative',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: spacing.md - 2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarImage: {
     width: 100,

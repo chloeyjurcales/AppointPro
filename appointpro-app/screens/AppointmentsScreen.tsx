@@ -14,7 +14,7 @@ import BottomTabBar, { TabKey } from '../components/BottomTabBar';
 type AppointmentStatus = 'upcoming' | 'completed' | 'canceled';
 type FilterKey = 'upcoming' | 'completed' | 'canceled';
 
-type Appointment = {
+export type Appointment = {
   id: string;
   status: AppointmentStatus;
   doctorName: string;
@@ -22,9 +22,15 @@ type Appointment = {
   category: string;
   location: string;
   mode: string;
+  department?: string;
+  // Raw values kept alongside the display-formatted `date` above so the
+  // Home screen can find/sort the soonest upcoming one without
+  // re-parsing the label.
+  dateKey?: string; // 'YYYY-MM-DD'
+  startTime24?: string; // 'HH:MM:SS'
 };
 
-const APPOINTMENTS: Appointment[] = [
+export const DEFAULT_APPOINTMENTS: Appointment[] = [
   {
     id: '1',
     status: 'upcoming',
@@ -63,6 +69,59 @@ const APPOINTMENTS: Appointment[] = [
   },
 ];
 
+// Shape of an `appointments` row (joined with the booked faculty's own
+// faculty/profiles row) as returned by Supabase for this student's list.
+export type DbStudentAppointment = {
+  id: string;
+  date: string; // 'YYYY-MM-DD'
+  start_time: string; // 'HH:MM:SS'
+  end_time: string;
+  category: string | null;
+  mode: 'Face-to-Face' | 'Online';
+  location: string;
+  status: 'upcoming' | 'completed' | 'canceled';
+  faculty: {
+    department: string | null;
+    profiles: { full_name: string } | { full_name: string }[] | null;
+  } | null;
+};
+
+function formatStudentApptDate(dateKey: string): string {
+  const d = new Date(dateKey + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatStudentApptTime12h(time24: string): string {
+  const [hStr, mStr] = time24.split(':');
+  let hour = parseInt(hStr, 10);
+  const minute = parseInt(mStr, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${minute.toString().padStart(2, '0')} ${period}`;
+}
+
+// Converts a real `appointments` row into the shape this screen (and the
+// Home screen's "Upcoming Appointment" card) already expects.
+export function mapDbStudentAppointment(row: DbStudentAppointment): Appointment {
+  const facultyProfile = Array.isArray(row.faculty?.profiles)
+    ? row.faculty?.profiles[0]
+    : row.faculty?.profiles;
+
+  return {
+    id: row.id,
+    status: row.status,
+    doctorName: facultyProfile?.full_name ?? 'Unknown Faculty',
+    date: `${formatStudentApptDate(row.date)} · ${formatStudentApptTime12h(row.start_time)}`,
+    category: row.category ?? 'Consultation',
+    location: row.mode === 'Online' ? 'Online' : row.location,
+    mode: row.mode,
+    department: row.faculty?.department ?? undefined,
+    dateKey: row.date,
+    startTime24: row.start_time,
+  };
+}
+
 const TABS: { key: FilterKey; label: string }[] = [
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'completed', label: 'Completed' },
@@ -97,19 +156,24 @@ function EmptySpaceIllustration() {
 }
 
 type AppointmentsScreenProps = {
+  // Controlled from App.tsx (real `appointments` rows for the logged-in
+  // student). Falls back to the mock list so this screen still works
+  // standalone.
+  appointments?: Appointment[];
   onMenuPress?: () => void;
   onSelectAppointment?: (appointment: Appointment) => void;
   onTabChange?: (tab: TabKey) => void;
 };
 
 export default function AppointmentsScreen({
+  appointments = DEFAULT_APPOINTMENTS,
   onMenuPress,
   onSelectAppointment,
   onTabChange,
 }: AppointmentsScreenProps) {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('upcoming');
 
-  const filtered = APPOINTMENTS.filter((a) => matchesFilter(a, activeFilter));
+  const filtered = appointments.filter((a) => matchesFilter(a, activeFilter));
 
   return (
     <SafeAreaView style={styles.safeArea}>

@@ -52,6 +52,51 @@ export const INITIAL_STUDENT_NOTIFICATIONS: NotificationItem[] = [
   },
 ];
 
+// Fallback used only if FacultyNotificationsScreen is rendered without
+// real data passed in (e.g. in isolation/tests).
+export const INITIAL_FACULTY_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: '1',
+    icon: 'notifications-outline',
+    title: 'New Appointment',
+    description: 'Maria Clara booked an appointment',
+    time: '8:00 AM',
+    read: true,
+  },
+  {
+    id: '2',
+    icon: 'sync-outline',
+    title: 'Reschedule Request',
+    description: 'Chloey Lyca Jurcales requested for a reschedule',
+    time: '10:20 AM',
+    read: true,
+  },
+  {
+    id: '3',
+    icon: 'sync-outline',
+    title: 'Walk in Queue Update',
+    description: 'New walk-in added, you are now servicing #2',
+    time: '7:00 AM',
+    read: true,
+  },
+  {
+    id: '4',
+    icon: 'information-circle-outline',
+    title: 'System Update',
+    description: 'Your schedule for next week has been updated.',
+    time: '9:00 AM',
+    read: false,
+  },
+  {
+    id: '5',
+    icon: 'notifications-outline',
+    title: 'Reminder',
+    description: 'You have 3 appointments tomorrow.',
+    time: '11:20 AM',
+    read: false,
+  },
+];
+
 // Formats the current time the same way the mock data above is formatted
 // (e.g. "9:05 AM"), so notifications generated at runtime match the rest
 // of the list.

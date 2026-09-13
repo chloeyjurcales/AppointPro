@@ -10,79 +10,36 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import FacultyBottomTabBar, { FacultyTabKey } from '../components/FacultyBottomTabBar';
-
-type NotificationItem = {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-  time: string;
-  unread: boolean;
-};
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: '1',
-    icon: 'notifications-outline',
-    title: 'New Appointment',
-    description: 'Maria Clara booked an appointment',
-    time: '8:00 AM',
-    unread: false,
-  },
-  {
-    id: '2',
-    icon: 'sync-outline',
-    title: 'Reschedule Request',
-    description: 'Chloey Lyca Jurcales requested for a reschedule',
-    time: '10:20 AM',
-    unread: false,
-  },
-  {
-    id: '3',
-    icon: 'sync-outline',
-    title: 'Walk in Queue Update',
-    description: 'New walk-in added, you are now servicing #2',
-    time: '7:00 AM',
-    unread: false,
-  },
-  {
-    id: '4',
-    icon: 'information-circle-outline',
-    title: 'System Update',
-    description: 'Your schedule for next week has been updated.',
-    time: '9:00 AM',
-    unread: true,
-  },
-  {
-    id: '5',
-    icon: 'notifications-outline',
-    title: 'Reminder',
-    description: 'You have 3 appointments tommorow.',
-    time: '11:20 AM',
-    unread: true,
-  },
-];
+import { NotificationItem, INITIAL_FACULTY_NOTIFICATIONS } from '../data/notifications';
 
 type FacultyNotificationsScreenProps = {
+  // Controlled from App.tsx (same real notifications table/state the
+  // student Notifications screen uses). Falls back to the mock list so
+  // this screen still works standalone.
+  notifications?: NotificationItem[];
+  onDeleteNotifications?: (ids: string[]) => void;
   onBack?: () => void;
   onMarkAllRead?: () => void;
+  onMarkAsRead?: (id: string) => void;
   onSelectNotification?: (item: NotificationItem) => void;
   onTabChange?: (tab: FacultyTabKey) => void;
 };
 
 export default function FacultyNotificationsScreen({
+  notifications = INITIAL_FACULTY_NOTIFICATIONS,
+  onDeleteNotifications,
   onBack,
   onMarkAllRead,
+  onMarkAsRead,
   onSelectNotification,
   onTabChange,
 }: FacultyNotificationsScreenProps) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const allSelected = selectedIds.size > 0 && selectedIds.size === notifications.length;
-  const hasUnread = notifications.some((n) => n.unread);
+  const hasUnread = notifications.some((n) => !n.read);
 
   const enterSelectMode = () => {
     setOptionsMenuOpen(false);
@@ -116,7 +73,7 @@ export default function FacultyNotificationsScreen({
   };
 
   const handleDeleteSelected = () => {
-    setNotifications((prev) => prev.filter((n) => !selectedIds.has(n.id)));
+    onDeleteNotifications?.(Array.from(selectedIds));
     exitSelectMode();
   };
 
@@ -124,17 +81,12 @@ export default function FacultyNotificationsScreen({
     if (selectMode) {
       toggleSelected(item.id);
     } else {
-      if (item.unread) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
-        );
-      }
+      if (!item.read) onMarkAsRead?.(item.id);
       onSelectNotification?.(item);
     }
   };
 
   const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
     onMarkAllRead?.();
   };
 
@@ -208,9 +160,9 @@ export default function FacultyNotificationsScreen({
             <TouchableOpacity
               style={[
                 styles.row,
-                item.unread && !selectMode && styles.rowUnread,
+                !item.read && !selectMode && styles.rowUnread,
                 index < notifications.length - 1 &&
-                  (!item.unread || selectMode) &&
+                  (item.read || selectMode) &&
                   styles.rowBorder,
               ]}
               onPress={() => handleRowPress(item)}

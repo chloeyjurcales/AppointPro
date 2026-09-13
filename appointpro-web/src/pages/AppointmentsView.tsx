@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 import './AppointmentsView.css';
 
 type AppointmentStatus = 'Upcoming' | 'Completed' | 'Cancelled';
@@ -15,6 +17,9 @@ type Appointment = {
   status: AppointmentStatus;
   mode: MeetingMode;
   location: string;
+  // The booking student's real `profiles.id` — needed to notify them
+  // when this appointment is cancelled/rescheduled/completed.
+  studentUserId: string | undefined;
   // Real Date fields power the reminder/queue features below. `startsAt` is
   // this student's own turn start; `blockStart`/`blockEnd` describe the
   // underlying faculty schedule block the appointment falls in (e.g. a
@@ -101,148 +106,124 @@ function getEstimatedWaitSeconds(
   return total;
 }
 
-function formatDateLabelFromDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
+// Shape of an `appointments` row (joined with the booking student's own
+// profile, and with the availability slot it was booked into, if any) as
+// returned by Supabase.
+type DbAppointment = {
+  id: string;
+  student_id: string;
+  slot_id: string | null;
+  date: string; // 'YYYY-MM-DD'
+  start_time: string; // 'HH:MM:SS'
+  end_time: string;
+  duration_minutes: number;
+  category: string | null;
+  purpose: string | null;
+  mode: MeetingMode;
+  location: string;
+  status: 'upcoming' | 'completed' | 'canceled';
+  students: {
+    student_id: string;
+    department: string | null;
+    year_level: string | null;
+    profiles: { full_name: string } | { full_name: string }[] | null;
+  } | null;
+  // The parent slot's own time range, when this appointment was booked
+  // into a shared slot — used to reconstruct the "Live Queue" block, since
+  // several students can share one slot while each keeping their own
+  // start_time/end_time turn within it.
+  availability_slots:
+    | { start_time: string; end_time: string }
+    | { start_time: string; end_time: string }[]
+    | null;
+};
+
+const STATUS_FROM_DB: Record<DbAppointment['status'], AppointmentStatus> = {
+  upcoming: 'Upcoming',
+  completed: 'Completed',
+  canceled: 'Cancelled',
+};
+
+// "2:30 PM" from a "14:30:00" DB time string.
+function formatDbTime(time24: string): string {
+  const [hourStr, minuteStr] = time24.split(':');
+  let hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${pad2(minute)} ${period}`;
+}
+
+function combineDbDateAndTime(dateKey: string, time24: string): Date {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const [hour, minute] = time24.split(':').map(Number);
+  return new Date(year, month - 1, day, hour, minute);
+}
+
+function formatDbDateLabel(dateKey: string): string {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 }
 
-// Placeholder data — replace with real Supabase queries once the
-// appointments table exists (same convention as Dashboard.tsx). Seeded
-// relative to "now" so the reminder and live-queue demo below is always
-// visible no matter when this page is opened.
-function buildInitialAppointments(now: Date): Appointment[] {
-  // A 60-minute schedule block that started 10 minutes ago, so there's
-  // always a live queue to demonstrate: student 1 is 10 min into their
-  // 30-min turn (20 min left), student 2 is still waiting.
-  const liveBlockStart = addMinutes(now, -10);
-  const liveBlockEnd = addMinutes(liveBlockStart, 60);
+function buildStudentInfo(
+  department: string | null | undefined,
+  yearLevel: string | null | undefined,
+  studentId: string | undefined,
+): string {
+  const parts = [department, yearLevel].filter(
+    (part): part is string => !!part,
+  );
+  if (studentId) parts.push(`Student ID ${studentId}`);
+  return parts.join(' · ');
+}
 
-  // A second block starting in ~58 minutes, to demonstrate the "1 hour
-  // before" reminder immediately on load.
-  const soonStart = addMinutes(now, 58);
-  const soonEnd = addMinutes(soonStart, 30);
+function mapDbAppointment(row: DbAppointment): Appointment {
+  const student = row.students;
+  const profile = Array.isArray(student?.profiles)
+    ? student?.profiles[0]
+    : student?.profiles;
+  const slot = Array.isArray(row.availability_slots)
+    ? row.availability_slots[0]
+    : row.availability_slots;
 
-  const pastCompleted = addMinutes(now, -2 * 24 * 60);
-  const pastCancelled = addMinutes(now, -5 * 24 * 60);
-  const farFuture = addMinutes(now, 3 * 24 * 60);
+  const startsAt = combineDbDateAndTime(row.date, row.start_time);
+  const durationMinutes = row.duration_minutes;
+  const blockStart = slot
+    ? combineDbDateAndTime(row.date, slot.start_time)
+    : startsAt;
+  const blockEnd = slot
+    ? combineDbDateAndTime(row.date, slot.end_time)
+    : addMinutes(startsAt, durationMinutes);
 
-  const build = (
-    id: string,
-    studentName: string,
-    studentInfo: string,
-    reason: string,
-    status: AppointmentStatus,
-    startsAt: Date,
-    durationMinutes: number,
-    blockStart: Date,
-    blockEnd: Date,
-    mode: MeetingMode,
-    location: string,
-  ): Appointment => ({
-    id,
-    studentName,
-    studentInfo,
-    reason,
-    status,
-    mode,
-    location,
-    date: formatDateLabelFromDate(startsAt),
-    time: `${formatClockTime(startsAt)} - ${formatClockTime(
-      addMinutes(startsAt, durationMinutes),
-    )}`,
+  return {
+    id: row.id,
+    studentName: profile?.full_name ?? 'Unknown Student',
+    studentInfo: buildStudentInfo(
+      student?.department,
+      student?.year_level,
+      student?.student_id,
+    ),
+    reason: row.purpose ?? row.category ?? 'Consultation',
+    status: STATUS_FROM_DB[row.status] ?? 'Upcoming',
+    mode: row.mode,
+    location: row.location,
+    studentUserId: row.student_id,
+    date: formatDbDateLabel(row.date),
+    time: `${formatDbTime(row.start_time)} - ${formatDbTime(row.end_time)}`,
     startsAt,
     durationMinutes,
     blockStart,
     blockEnd,
-  });
-
-  return [
-    build(
-      '1',
-      'Maria Clara',
-      'BSIT-3A · Student ID 2023-00456',
-      'Academic Advising',
-      'Upcoming',
-      liveBlockStart,
-      30,
-      liveBlockStart,
-      liveBlockEnd,
-      'Face-to-Face',
-      'Room 305, CITE Building',
-    ),
-    build(
-      '2',
-      'John Doe',
-      'BSCS-2B · Student ID 2023-00812',
-      'Faculty Consultation',
-      'Upcoming',
-      addMinutes(liveBlockStart, 30),
-      30,
-      liveBlockStart,
-      liveBlockEnd,
-      'Online',
-      'https://meet.google.com/abc-defg-hij',
-    ),
-    build(
-      '3',
-      'Anna Reyes',
-      'BSIT-4A · Student ID 2022-00193',
-      'Thesis Consultation',
-      'Upcoming',
-      soonStart,
-      30,
-      soonStart,
-      soonEnd,
-      'Face-to-Face',
-      'Room 305, CITE Building',
-    ),
-    build(
-      '4',
-      'James Santos',
-      'BSCS-3A · Student ID 2023-00214',
-      'Course Inquiry',
-      'Completed',
-      pastCompleted,
-      30,
-      pastCompleted,
-      addMinutes(pastCompleted, 60),
-      'Face-to-Face',
-      'Room 305, CITE Building',
-    ),
-    build(
-      '5',
-      'Lisa Garcia',
-      'BSIT-2A · Student ID 2024-00087',
-      'Academic Advising',
-      'Cancelled',
-      pastCancelled,
-      30,
-      pastCancelled,
-      addMinutes(pastCancelled, 60),
-      'Online',
-      'https://meet.google.com/xyz-uvwx-rst',
-    ),
-    build(
-      '6',
-      'Miguel Torres',
-      'BSCS-4B · Student ID 2022-00341',
-      'Grade Concern',
-      'Upcoming',
-      farFuture,
-      30,
-      farFuture,
-      addMinutes(farFuture, 60),
-      'Face-to-Face',
-      'Room 305, CITE Building',
-    ),
-  ];
+  };
 }
 
 // Converts an <input type="date"> value ("2026-09-07") into the same
-// display format the mock data uses ("Sep 7, 2026").
+// display format the DB data uses ("Sep 7, 2026").
 function formatDateLabel(value: string): string {
   const [year, month, day] = value.split('-').map(Number);
   const date = new Date(year, month - 1, day);
@@ -273,10 +254,70 @@ function combineDateAndTime(dateValue: string, timeValue: string): Date {
   return new Date(year, month - 1, day, hour, minute);
 }
 
-export default function AppointmentsView() {
-  const [appointments, setAppointments] = useState<Appointment[]>(() =>
-    buildInitialAppointments(new Date()),
-  );
+type AppointmentsViewProps = {
+  session: Session;
+  facultyName: string;
+};
+
+export default function AppointmentsView({
+  session,
+  facultyName,
+}: AppointmentsViewProps) {
+  const facultyId = session.user.id;
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  // Loads this faculty member's real appointments (joined with the
+  // booking student's profile and, when applicable, the shared slot they
+  // booked into), then keeps them live via Realtime so a new booking or a
+  // change made from the mobile app shows up without a refresh.
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAppointments = () => {
+      supabase
+        .from('appointments')
+        .select(
+          `id, student_id, slot_id, date, start_time, end_time, duration_minutes,
+           category, purpose, mode, location, status,
+           students ( student_id, department, year_level, profiles ( full_name ) ),
+           availability_slots ( start_time, end_time )`,
+        )
+        .eq('faculty_id', facultyId)
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            console.log('Failed to load appointments:', error.message);
+            return;
+          }
+          setAppointments(
+            (data as unknown as DbAppointment[]).map(mapDbAppointment),
+          );
+        });
+    };
+
+    loadAppointments();
+
+    const channel = supabase
+      .channel(`av-appointments-${facultyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `faculty_id=eq.${facultyId}`,
+        },
+        () => loadAppointments(),
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [facultyId]);
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
 
@@ -390,6 +431,26 @@ export default function AppointmentsView() {
         ? `${remaining[0].studentName} has been notified — their turn has started.`
         : 'Queue complete for this time block.',
     );
+
+    supabase
+      .from('appointments')
+      .update({ status: 'completed' })
+      .eq('id', current.id)
+      .then(({ error }) => {
+        if (error) {
+          window.alert('Could not mark appointment complete: ' + error.message);
+        }
+      });
+
+    const next = remaining[0];
+    if (next?.studentUserId) {
+      supabase.from('notifications').insert({
+        user_id: next.studentUserId,
+        icon: 'notifications-outline',
+        title: 'Your Turn',
+        description: `${facultyName} is ready for you now.`,
+      });
+    }
   };
 
   const counts = useMemo(
@@ -440,11 +501,33 @@ export default function AppointmentsView() {
   const confirmCancel = () => {
     if (modal.type !== 'cancel' || !cancelReason.trim()) return;
 
-    const { id } = modal.appointment;
+    const { id, date, time, studentUserId } = modal.appointment;
+    const reason = cancelReason.trim();
+
     setAppointments((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: 'Cancelled' } : a)),
     );
     closeModal();
+
+    supabase
+      .from('appointments')
+      .update({ status: 'canceled' })
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) window.alert('Could not cancel appointment: ' + error.message);
+      });
+
+    // The appointment no longer occupies its slot's capacity.
+    supabase.from('slot_bookings').delete().eq('appointment_id', id);
+
+    if (studentUserId) {
+      supabase.from('notifications').insert({
+        user_id: studentUserId,
+        icon: 'close-circle-outline',
+        title: 'Appointment Cancelled',
+        description: `${facultyName} cancelled your appointment on ${date} at ${time}. Reason: ${reason}`,
+      });
+    }
   };
 
   const canConfirmReschedule =
@@ -458,7 +541,7 @@ export default function AppointmentsView() {
   const confirmReschedule = () => {
     if (modal.type !== 'reschedule' || !canConfirmReschedule) return;
 
-    const { id, durationMinutes, location } = modal.appointment;
+    const { id, durationMinutes, location, studentUserId } = modal.appointment;
     const newDate = formatDateLabel(rescheduleDate);
     const newTime = `${formatTimeLabel(rescheduleStart)} - ${formatTimeLabel(
       rescheduleEnd,
@@ -466,6 +549,7 @@ export default function AppointmentsView() {
     const newStartsAt = combineDateAndTime(rescheduleDate, rescheduleStart);
     const newLocation =
       rescheduleMode === 'Online' ? rescheduleMeetingLink.trim() : location;
+    const reason = rescheduleReason.trim();
 
     setAppointments((prev) =>
       prev.map((a) =>
@@ -486,6 +570,37 @@ export default function AppointmentsView() {
       ),
     );
     closeModal();
+
+    supabase
+      .from('appointments')
+      .update({
+        date: rescheduleDate,
+        start_time: `${rescheduleStart}:00`,
+        end_time: `${rescheduleEnd}:00`,
+        mode: rescheduleMode,
+        location: newLocation,
+        // No longer tied to its original shared slot — it's now a
+        // standalone time this faculty member picked directly.
+        slot_id: null,
+      })
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) window.alert('Could not reschedule appointment: ' + error.message);
+      });
+
+    supabase.from('slot_bookings').delete().eq('appointment_id', id);
+
+    if (studentUserId) {
+      supabase.from('notifications').insert({
+        user_id: studentUserId,
+        icon: 'calendar-outline',
+        title: 'Appointment Rescheduled',
+        description:
+          rescheduleMode === 'Online'
+            ? `${facultyName} rescheduled your appointment to ${newDate} at ${newTime}. Reason: ${reason}. New meeting link: ${rescheduleMeetingLink.trim()}`
+            : `${facultyName} rescheduled your appointment to ${newDate} at ${newTime}. Reason: ${reason}.`,
+      });
+    }
   };
 
   return (

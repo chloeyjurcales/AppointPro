@@ -1,12 +1,9 @@
-import { useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import AppointmentsView from './AppointmentsView';
 import FacultyView, { type FacultyTab } from './FacultyView';
-import NotificationsView, {
-  type Notification,
-  INITIAL_NOTIFICATIONS,
-} from './NotificationsView';
+import NotificationsView, { type Notification } from './NotificationsView';
 import SettingsView from './SettingsView';
 import './Dashboard.css';
 
@@ -46,37 +43,123 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-const TODAY_STATS = {
-  appointments: 3,
-  pendingReschedules: 1,
-  inQueue: 2,
+const QUOTE = 'Better conversations build a brighter future.';
+
+// ---------- Real data: today's schedule / stats ----------
+
+// 'YYYY-MM-DD' for whatever "today" is right now — matches the
+// `appointments.date` column format.
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// "14:30:00" -> "2:30 PM"
+function formatClockTime(time24: string): string {
+  const [hourStr, minuteStr] = time24.split(':');
+  let hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${minute.toString().padStart(2, '0')} ${period}`;
+}
+
+const STATUS_LABELS: Record<string, ScheduleItem['status']> = {
+  upcoming: 'Upcoming',
+  completed: 'Completed',
+  canceled: 'Cancelled',
+  cancelled: 'Cancelled',
 };
 
-const TODAY_SCHEDULE: ScheduleItem[] = [
-  {
-    id: '1',
-    time: '10:00 AM – 10:30 AM',
-    studentName: 'Maria Clara',
-    type: 'Academic Advising',
-    status: 'Upcoming',
-  },
-  {
-    id: '2',
-    time: '11:30 AM – 12:00 PM',
-    studentName: 'John Doe',
-    type: 'Faculty Consultation',
-    status: 'Upcoming',
-  },
-  {
-    id: '3',
-    time: '2:00 PM – 2:30 PM',
-    studentName: 'Anna Reyes',
-    type: 'Thesis Consultation',
-    status: 'Completed',
-  },
-];
+// Shape of an `appointments` row (joined with the booking student's own
+// profile) as returned by Supabase for today's schedule.
+type DbTodayAppointment = {
+  id: string;
+  start_time: string;
+  end_time: string;
+  category: string | null;
+  status: string;
+  students: {
+    profiles: { full_name: string } | { full_name: string }[] | null;
+  } | null;
+};
 
-const QUOTE = 'Better conversations build a brighter future.';
+function mapDbTodayAppointment(row: DbTodayAppointment): ScheduleItem {
+  const profile = Array.isArray(row.students?.profiles)
+    ? row.students?.profiles[0]
+    : row.students?.profiles;
+
+  return {
+    id: row.id,
+    time: `${formatClockTime(row.start_time)} – ${formatClockTime(row.end_time)}`,
+    studentName: profile?.full_name ?? 'Unknown Student',
+    type: row.category ?? 'Consultation',
+    status: STATUS_LABELS[row.status] ?? 'Upcoming',
+  };
+}
+
+// ---------- Real data: notifications ----------
+
+// Shape of a row from the real `notifications` table in Supabase.
+type DbNotification = {
+  id: string;
+  icon: string;
+  title: string;
+  description: string | null;
+  read: boolean;
+  created_at: string;
+};
+
+// The `notifications` table doesn't have its own "kind" column, so the
+// icon string chosen when the row was created (see App.tsx's
+// sendNotification calls) is used to pick which of the four visual
+// styles NotificationsView already supports.
+function iconToNotificationType(icon: string): Notification['type'] {
+  if (icon.includes('close-circle') || icon.includes('calendar')) {
+    return 'appointment';
+  }
+  if (icon.includes('sync') || icon.includes('time')) return 'reminder';
+  if (icon.includes('checkmark') || icon.includes('success')) return 'success';
+  return 'system';
+}
+
+// "10 minutes ago" / "Yesterday" / "Sep 3, 2026" from a real timestamp.
+function formatRelativeTime(isoTimestamp: string): string {
+  const then = new Date(isoTimestamp).getTime();
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - then) / 60000));
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+  }
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  }
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+
+  return new Date(isoTimestamp).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function mapDbNotification(row: DbNotification): Notification {
+  return {
+    id: row.id,
+    type: iconToNotificationType(row.icon),
+    title: row.title,
+    message: row.description ?? '',
+    time: formatRelativeTime(row.created_at),
+    unread: !row.read,
+  };
+}
 
 export default function Dashboard({
   session,
@@ -104,12 +187,212 @@ export default function Dashboard({
   const [activeNav, setActiveNav] = useState<NavId>('home');
   const [facultyInitialTab, setFacultyInitialTab] =
     useState<FacultyTab>('profile');
-  const [notifications, setNotifications] = useState<Notification[]>(
-    INITIAL_NOTIFICATIONS,
-  );
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [facultySearch, setFacultySearch] = useState('');
   const unreadNotificationCount = notifications.filter(
     (notification) => notification.unread,
   ).length;
+
+  const [todaySchedule, setTodaySchedule] = useState<ScheduleItem[]>([]);
+  const [inQueueCount, setInQueueCount] = useState(0);
+  // There's no "reschedule request" concept in the schema yet — a
+  // faculty-initiated reschedule applies immediately rather than sitting
+  // in a pending state, and a student never requests one either. This
+  // stays at 0 (honestly, not faked) until that workflow exists.
+  const pendingReschedulesCount = 0;
+
+  const facultyId = session.user.id;
+
+  // Loads today's real appointments for this faculty member (backs both
+  // the "Today's Schedule" list and the Appointments stat), then keeps
+  // it live via Realtime so a new booking/cancellation shows up without
+  // a manual refresh.
+  useEffect(() => {
+    let isMounted = true;
+    const today = toDateKey(new Date());
+
+    const loadTodaySchedule = () => {
+      supabase
+        .from('appointments')
+        .select(
+          `id, start_time, end_time, category, status,
+           students ( profiles ( full_name ) )`,
+        )
+        .eq('faculty_id', facultyId)
+        .eq('date', today)
+        .order('start_time', { ascending: true })
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            console.log('Failed to load today\'s schedule:', error.message);
+            return;
+          }
+          setTodaySchedule(
+            (data as unknown as DbTodayAppointment[]).map(mapDbTodayAppointment),
+          );
+        });
+    };
+
+    loadTodaySchedule();
+
+    const channel = supabase
+      .channel(`dashboard-appointments-${facultyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `faculty_id=eq.${facultyId}`,
+        },
+        () => loadTodaySchedule(),
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [facultyId]);
+
+  // Loads today's real walk-in queue length for the "In Queue" stat.
+  useEffect(() => {
+    let isMounted = true;
+    const today = toDateKey(new Date());
+
+    const loadQueueCount = () => {
+      supabase
+        .from('queue_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('faculty_id', facultyId)
+        .eq('queue_date', today)
+        .then(({ count, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            console.log('Failed to load queue count:', error.message);
+            return;
+          }
+          setInQueueCount(count ?? 0);
+        });
+    };
+
+    loadQueueCount();
+
+    const channel = supabase
+      .channel(`dashboard-queue-${facultyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'queue_entries',
+          filter: `faculty_id=eq.${facultyId}`,
+        },
+        () => loadQueueCount(),
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [facultyId]);
+
+  // Loads this faculty member's real notifications, then keeps them live
+  // via Realtime — new rows (e.g. a student cancelling or booking) appear
+  // immediately, and read/delete stay in sync if changed from elsewhere.
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', facultyId)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          console.log('Failed to load notifications:', error.message);
+          return;
+        }
+        setNotifications((data as DbNotification[]).map(mapDbNotification));
+      });
+
+    const channel = supabase
+      .channel(`dashboard-notifications-${facultyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${facultyId}`,
+        },
+        (payload) => {
+          const newItem = mapDbNotification(payload.new as DbNotification);
+          setNotifications((prev) => [newItem, ...prev]);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [facultyId]);
+
+  // Marks every unread notification as read, both locally and in
+  // Supabase.
+  const handleMarkAllNotificationsRead = () => {
+    const unreadIds = notifications
+      .filter((notification) => notification.unread)
+      .map((notification) => notification.id);
+    if (unreadIds.length === 0) return;
+
+    setNotifications((current) =>
+      current.map((notification) => ({ ...notification, unread: false })),
+    );
+
+    supabase
+      .from('notifications')
+      .update({ read: true })
+      .in('id', unreadIds)
+      .then(({ error }) => {
+        if (error) console.log('Failed to mark notifications read:', error.message);
+      });
+  };
+
+  const handleMarkSelectedNotificationsRead = (ids: string[]) => {
+    setNotifications((current) =>
+      current.map((notification) =>
+        ids.includes(notification.id)
+          ? { ...notification, unread: false }
+          : notification,
+      ),
+    );
+
+    supabase
+      .from('notifications')
+      .update({ read: true })
+      .in('id', ids)
+      .then(({ error }) => {
+        if (error) console.log('Failed to mark notifications read:', error.message);
+      });
+  };
+
+  const handleDeleteSelectedNotifications = (ids: string[]) => {
+    setNotifications((current) =>
+      current.filter((notification) => !ids.includes(notification.id)),
+    );
+
+    supabase
+      .from('notifications')
+      .delete()
+      .in('id', ids)
+      .then(({ error }) => {
+        if (error) console.log('Failed to delete notifications:', error.message);
+      });
+  };
 
   const handleNavClick = (id: NavId, facultyTab: FacultyTab = 'profile') => {
     setActiveNav(id);
@@ -185,10 +468,19 @@ export default function Dashboard({
 
       <div className="db-body">
         <header className="db-topbar">
-          <div className="db-search">
-            <SearchIcon />
-            <input type="text" placeholder="Search..." />
-          </div>
+          {activeNav === 'faculty' ? (
+            <div className="db-search">
+              <SearchIcon />
+              <input
+                type="text"
+                placeholder="Search faculty members..."
+                value={facultySearch}
+                onChange={(event) => setFacultySearch(event.target.value)}
+              />
+            </div>
+          ) : (
+            <div />
+          )}
 
           <div className="db-topbar-icons">
             <button
@@ -224,7 +516,7 @@ export default function Dashboard({
                       <AppointmentsIcon />
                     </div>
                     <span className="db-stat-value">
-                      {TODAY_STATS.appointments}
+                      {todaySchedule.length}
                     </span>
                     <span className="db-stat-label">Appointments</span>
                   </button>
@@ -238,7 +530,7 @@ export default function Dashboard({
                       <ClockIcon />
                     </div>
                     <span className="db-stat-value">
-                      {TODAY_STATS.pendingReschedules}
+                      {pendingReschedulesCount}
                     </span>
                     <span className="db-stat-label">
                       Pending
@@ -256,7 +548,7 @@ export default function Dashboard({
                       <QueueIcon />
                     </div>
                     <span className="db-stat-value">
-                      {TODAY_STATS.inQueue}
+                      {inQueueCount}
                     </span>
                     <span className="db-stat-label">
                       In
@@ -279,22 +571,28 @@ export default function Dashboard({
                     </button>
                   </div>
 
-                  <ul className="db-schedule-list">
-                    {TODAY_SCHEDULE.map((item) => (
-                      <li key={item.id} className="db-schedule-item">
-                        <span className="db-schedule-time">{item.time}</span>
-                        <span className="db-schedule-name">
-                          {item.studentName}
-                        </span>
-                        <span className="db-schedule-type">{item.type}</span>
-                        <span
-                          className={`db-status-badge db-status-${item.status.toLowerCase()}`}
-                        >
-                          {item.status}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  {todaySchedule.length === 0 ? (
+                    <p className="db-schedule-empty">
+                      No appointments on your schedule today.
+                    </p>
+                  ) : (
+                    <ul className="db-schedule-list">
+                      {todaySchedule.map((item) => (
+                        <li key={item.id} className="db-schedule-item">
+                          <span className="db-schedule-time">{item.time}</span>
+                          <span className="db-schedule-name">
+                            {item.studentName}
+                          </span>
+                          <span className="db-schedule-type">{item.type}</span>
+                          <span
+                            className={`db-status-badge db-status-${item.status.toLowerCase()}`}
+                          >
+                            {item.status}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </section>
 
                 <section className="db-quick-actions">
@@ -373,13 +671,20 @@ export default function Dashboard({
 
           {activeNav === 'appointments' && (
             <div className="db-main-col">
-              <AppointmentsView />
+              <AppointmentsView
+                session={session}
+                facultyName={firstAndLast || user.email || 'Faculty'}
+              />
             </div>
           )}
 
           {activeNav === 'faculty' && (
             <div className="db-main-col">
-              <FacultyView initialTab={facultyInitialTab} />
+              <FacultyView
+                session={session}
+                initialTab={facultyInitialTab}
+                searchQuery={facultySearch}
+              />
             </div>
           )}
 
@@ -387,7 +692,9 @@ export default function Dashboard({
             <div className="db-main-col">
               <NotificationsView
                 notifications={notifications}
-                onNotificationsChange={setNotifications}
+                onMarkAllRead={handleMarkAllNotificationsRead}
+                onMarkSelectedRead={handleMarkSelectedNotificationsRead}
+                onDeleteSelected={handleDeleteSelectedNotifications}
               />
             </div>
           )}

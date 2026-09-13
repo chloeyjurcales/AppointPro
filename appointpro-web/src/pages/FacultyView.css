@@ -380,6 +380,10 @@
 
 .fv-schedule-card {
   padding: 20px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  max-height: 640px;
+  overflow-y: auto;
   animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
 }
 
@@ -391,6 +395,16 @@
   gap: 12px;
 }
 
+.fv-schedule-header-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-card, #ffffff);
+  padding-top: 2px;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+}
+
 .fv-schedule-header h2 {
   margin: 0 0 3px;
 }
@@ -399,29 +413,6 @@
   margin: 0;
   font-size: 12.5px;
   color: var(--text-secondary, #6b7280);
-}
-
-.fv-add-schedule-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  background: var(--brand-500, #7a0e2c);
-  color: #ffffff;
-  font-size: 12.5px;
-  font-weight: 700;
-  padding: 9px 16px;
-  border-radius: var(--radius-md, 9px);
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: var(--shadow-brand, 0 10px 24px rgba(122, 14, 44, 0.24));
-  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
-    transform var(--duration-fast, 0.15s) var(--ease-standard, ease);
-}
-
-.fv-add-schedule-button:hover {
-  background: var(--brand-600, #5c0a21);
-  transform: translateY(-1px);
 }
 
 .fv-schedule-table-wrap {
@@ -500,43 +491,14 @@
   white-space: nowrap;
 }
 
-.fv-cell-available {
-  background: var(--color-success-bg, #e4f6eb);
-  color: var(--color-success, #1f9d55);
-}
-
-.fv-cell-class {
-  background: var(--color-violet-bg, #ece5fb);
-  color: var(--color-violet, #6a3fd6);
-}
-
-.fv-cell-office-hours {
+.fv-cell-face-to-face {
   background: var(--color-info-bg, #e3edfb);
   color: var(--color-info, #2563eb);
 }
 
-.fv-schedule-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-  white-space: nowrap;
-}
-
-.fv-schedule-actions button {
-  border: none;
-  background: none;
-  color: var(--text-tertiary, #9b9b9b);
-  cursor: pointer;
-  padding: 5px;
-  border-radius: 6px;
-  display: inline-flex;
-  transition: background var(--duration-fast, 0.15s) var(--ease-standard, ease),
-    color var(--duration-fast, 0.15s) var(--ease-standard, ease);
-}
-
-.fv-schedule-actions button:hover {
-  color: var(--brand-500, #7a0e2c);
-  background: var(--brand-50, #fdf1f4);
+.fv-cell-online {
+  background: var(--color-violet-bg, #ece5fb);
+  color: var(--color-violet, #6a3fd6);
 }
 
 .fv-legend {
@@ -562,16 +524,12 @@
   border-radius: 50%;
 }
 
-.fv-dot-class {
-  background: var(--color-violet, #6a3fd6);
-}
-
-.fv-dot-office {
+.fv-dot-face-to-face {
   background: var(--color-info, #2563eb);
 }
 
-.fv-dot-available {
-  background: var(--color-success, #1f9d55);
+.fv-dot-online {
+  background: var(--color-violet, #6a3fd6);
 }
 
 .fv-dot-unavailable {
@@ -1146,6 +1104,96 @@
 
 .fv-add-slot-confirm:hover {
   background: var(--brand-600, #5c0a21);
+}
+
+/* ---------- Directory ---------- */
+
+.fv-directory-card {
+  animation: theme-fade-in var(--duration-base, 0.2s) var(--ease-standard, ease) both;
+}
+
+.fv-directory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fv-directory-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: 1px solid var(--surface-border, #e5e7eb);
+  border-radius: var(--radius-md, 12px);
+  padding: 12px 16px;
+  background: var(--surface-card, #ffffff);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  transition: border-color var(--duration-fast, 0.15s) var(--ease-standard, ease),
+    box-shadow var(--duration-fast, 0.15s) var(--ease-standard, ease);
+}
+
+.fv-directory-row:hover {
+  border-color: var(--brand-200, #f6d0da);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(26, 15, 20, 0.05));
+}
+
+.fv-directory-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--brand-gradient, linear-gradient(155deg, #8a1433 0%, #5c0a21 100%));
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fv-directory-avatar svg {
+  width: 20px;
+  height: 20px;
+}
+
+.fv-directory-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fv-directory-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.fv-directory-role {
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.fv-directory-status {
+  font-size: 11.5px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.fv-directory-status-available {
+  color: var(--color-success, #1f9d55);
+}
+
+.fv-directory-status-unavailable {
+  color: var(--color-danger, #d93025);
+}
+
+.fv-directory-row svg:last-child {
+  color: var(--text-tertiary, #9b9b9b);
+  flex-shrink: 0;
 }
 
 /* ---------- Responsive ---------- */

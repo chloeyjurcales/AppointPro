@@ -11,19 +11,12 @@ type LoginPageProps = {
   onForgotPassword?: () => void;
   /** Called after a successful faculty login. */
   onSuccess?: () => void;
-  /**
-   * Called when Log In is clicked with no email/password typed in, instead
-   * of attempting real Supabase authentication. Lets the app drop the
-   * person straight into a demo session.
-   */
-  onDemoLogin?: () => void;
 };
 
 export default function LoginPage({
   onSignUp,
   onForgotPassword,
   onSuccess,
-  onDemoLogin,
 }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,15 +38,6 @@ export default function LoginPage({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    // Dev/testing shortcut: skip real Supabase authentication entirely and
-    // always let the caller sign the person straight into a demo session,
-    // no matter what (or whether anything) was typed into the form.
-    // Remove this block once you're ready to require real credentials.
-    if (onDemoLogin) {
-      onDemoLogin();
-      return;
-    }
 
     const validationError = validate();
     if (validationError) {

@@ -11,21 +11,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import FacultyBottomTabBar, { FacultyTabKey } from '../components/FacultyBottomTabBar';
 
-type ScheduleMode = 'face-to-face' | 'online';
+export type ScheduleMode = 'face-to-face' | 'online';
 
-type ScheduleItem = {
+export type ScheduleItem = {
   id: string;
   time: string;
   studentName: string;
   category: string;
   mode: ScheduleMode;
 };
-
-const SCHEDULE: ScheduleItem[] = [
-  { id: '1', time: '10:00 AM', studentName: 'Maria Clara', category: 'Academic Advising', mode: 'face-to-face' },
-  { id: '2', time: '11:30 AM', studentName: 'John Doe', category: 'Project Discussion', mode: 'online' },
-  { id: '3', time: '2:00 PM', studentName: 'Anna Reyes', category: 'Thesis Consultation', mode: 'face-to-face' },
-];
 
 type QuickAction = {
   key: string;
@@ -40,8 +34,14 @@ type FacultyHomeScreenProps = {
   appointmentsCount?: number;
   pendingReschedulesCount?: number;
   walkInQueueCount?: number;
+  // Today's real appointments (already filtered/sorted by the caller).
+  // Falls back to a small mock list so this screen still works standalone.
+  schedule?: ScheduleItem[];
   onMenuPress?: () => void;
   onNotificationsPress?: () => void;
+  // Count of unread notifications for the logged-in faculty member —
+  // drives the numeric badge on the bell icon. Omit/0 to hide the badge.
+  unreadCount?: number;
   onViewSchedule?: () => void;
   onOpenAppointments?: () => void;
   onOpenPendingReschedules?: () => void;
@@ -51,13 +51,21 @@ type FacultyHomeScreenProps = {
   onTabChange?: (tab: FacultyTabKey) => void;
 };
 
+const FALLBACK_SCHEDULE: ScheduleItem[] = [
+  { id: '1', time: '10:00 AM', studentName: 'Maria Clara', category: 'Academic Advising', mode: 'face-to-face' },
+  { id: '2', time: '11:30 AM', studentName: 'John Doe', category: 'Project Discussion', mode: 'online' },
+  { id: '3', time: '2:00 PM', studentName: 'Anna Reyes', category: 'Thesis Consultation', mode: 'face-to-face' },
+];
+
 export default function FacultyHomeScreen({
   facultyFirstName = 'Juan',
   appointmentsCount = 8,
   pendingReschedulesCount = 2,
   walkInQueueCount = 6,
+  schedule = FALLBACK_SCHEDULE,
   onMenuPress,
   onNotificationsPress,
+  unreadCount = 0,
   onViewSchedule,
   onOpenAppointments,
   onOpenPendingReschedules,
@@ -101,8 +109,15 @@ export default function FacultyHomeScreen({
           <Text style={styles.greeting}>Hi, Dr. {facultyFirstName}! 👋</Text>
           <Text style={styles.greetingSub}>Welcome back</Text>
         </View>
-        <TouchableOpacity onPress={onNotificationsPress}>
+        <TouchableOpacity onPress={onNotificationsPress} style={styles.bellWrap}>
           <Ionicons name="notifications-outline" size={22} color={colors.textDark} />
+          {unreadCount > 0 && (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -146,28 +161,32 @@ export default function FacultyHomeScreen({
         </View>
 
         <View style={styles.card}>
-          {SCHEDULE.map((item, index) => (
-            <View
-              key={item.id}
-              style={[styles.scheduleRow, index < SCHEDULE.length - 1 && styles.rowBorder]}
-            >
-              <Text style={styles.scheduleTime}>{item.time}</Text>
-              <View style={styles.scheduleTextWrap}>
-                <Text style={styles.studentName}>{item.studentName}</Text>
-                <Text style={styles.detailText}>{item.category}</Text>
-              </View>
+          {schedule.length === 0 ? (
+            <Text style={styles.emptyScheduleText}>No appointments today.</Text>
+          ) : (
+            schedule.map((item, index) => (
               <View
-                style={[
-                  styles.modeBadge,
-                  item.mode === 'online' ? styles.modeBadgeOnline : styles.modeBadgeFaceToFace,
-                ]}
+                key={item.id}
+                style={[styles.scheduleRow, index < schedule.length - 1 && styles.rowBorder]}
               >
-                <Text style={styles.modeBadgeText}>
-                  {item.mode === 'online' ? 'Online' : 'Face-to-Face'}
-                </Text>
+                <Text style={styles.scheduleTime}>{item.time}</Text>
+                <View style={styles.scheduleTextWrap}>
+                  <Text style={styles.studentName}>{item.studentName}</Text>
+                  <Text style={styles.detailText}>{item.category}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.modeBadge,
+                    item.mode === 'online' ? styles.modeBadgeOnline : styles.modeBadgeFaceToFace,
+                  ]}
+                >
+                  <Text style={styles.modeBadgeText}>
+                    {item.mode === 'online' ? 'Online' : 'Face-to-Face'}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         <Text style={[styles.sectionTitle, styles.quickActionsTitle]}>Quick Actions</Text>
@@ -228,6 +247,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     marginTop: 1,
+  },
+  bellWrap: {
+    padding: 2,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.white,
+  },
+  bellBadgeText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: '700',
   },
   headerDivider: {
     height: 1,
@@ -291,6 +332,12 @@ const styles = StyleSheet.create({
   rowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  emptyScheduleText: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 13,
+    paddingVertical: spacing.lg,
   },
   scheduleRow: {
     flexDirection: 'row',

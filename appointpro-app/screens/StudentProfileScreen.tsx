@@ -25,7 +25,6 @@ type StudentProfileScreenProps = {
   appointmentMode?: 'face-to-face' | 'online';
   appointmentRoom?: string;
   onBack?: () => void;
-  onMessagePress?: () => void;
   onTabChange?: (tab: FacultyTabKey) => void;
 };
 
@@ -42,7 +41,6 @@ export default function StudentProfileScreen({
   appointmentMode,
   appointmentRoom,
   onBack,
-  onMessagePress,
   onTabChange,
 }: StudentProfileScreenProps) {
   return (
@@ -164,13 +162,6 @@ export default function StudentProfileScreen({
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.messageButton} onPress={onMessagePress} activeOpacity={0.85}>
-          <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.white} />
-          <Text style={styles.messageButtonText}>Message Student</Text>
-        </TouchableOpacity>
-      </View>
-
       <FacultyBottomTabBar active="directory" onChange={onTabChange} />
     </SafeAreaView>
   );
@@ -269,23 +260,5 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginVertical: spacing.md,
-  },
-  footer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  messageButton: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  messageButtonText: {
-    color: colors.white,
-    fontWeight: '700',
-    fontSize: 14,
   },
 });

@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
@@ -70,6 +71,9 @@ type SideMenuProps = {
   activeKey?: SideMenuKey;
   /** Badge count shown on the Notifications row. Omit/0 to hide the badge. */
   notificationCount?: number;
+  /** The signed-in user's real profile photo, if they've set one. Falls
+   * back to a generic person icon when omitted. */
+  photoUri?: string;
   onClose: () => void;
   onNavigate: (key: SideMenuKey) => void;
   onLogout: () => void;
@@ -82,11 +86,15 @@ export default function SideMenu({
   greeting = 'Good morning!',
   activeKey,
   notificationCount = 0,
+  photoUri,
   onClose,
   onNavigate,
   onLogout,
 }: SideMenuProps) {
   const items = role === 'faculty' ? FACULTY_ITEMS : STUDENT_ITEMS;
+  // Tapping the avatar/name jumps straight to the signed-in user's own
+  // profile screen (the same one the "Profile" row below opens).
+  const profileKey: SideMenuKey = role === 'faculty' ? 'facultyProfileMenu' : 'profile';
 
   // Drives both the panel slide and the backdrop fade. 0 = closed
   // (panel off-screen left), 1 = open.
@@ -134,9 +142,17 @@ export default function SideMenu({
         <Animated.View
           style={[styles.panel, { width: PANEL_WIDTH, transform: [{ translateX }] }]}
         >
-          <View style={styles.headerRow}>
+          <AnimatedPressable
+            style={styles.headerRow}
+            onPress={() => handleNavigate(profileKey)}
+            scaleTo={0.97}
+          >
             <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={22} color={colors.textMuted} />
+              {photoUri ? (
+                <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="person" size={22} color={colors.textMuted} />
+              )}
             </View>
             <View style={styles.headerTextWrap}>
               <Text style={styles.userName} numberOfLines={1}>
@@ -144,7 +160,8 @@ export default function SideMenu({
               </Text>
               <Text style={styles.greeting}>{greeting}</Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </AnimatedPressable>
 
           <View style={styles.divider} />
 
@@ -240,6 +257,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   headerTextWrap: {
     flex: 1,

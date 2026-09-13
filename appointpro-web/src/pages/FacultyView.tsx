@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
-import { usePersistentState } from '../lib/usePersistentState';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import './FacultyView.css';
 
-export type FacultyTab = 'profile' | 'schedule' | 'settings';
 
-type SlotStatus = 'available' | 'class' | 'office-hours' | 'unavailable';
+export type FacultyTab = 'profile' | 'schedule' | 'settings' | 'directory';
+
+type SlotStatus = 'face-to-face' | 'online' | 'unavailable';
 
 type ScheduleCell = {
   status: SlotStatus;
@@ -146,210 +148,29 @@ function getHolidayName(date: Date): string | null {
   return null;
 }
 
-const SCHEDULE_ROWS: ScheduleRow[] = [
-  {
-    time: '7:00 AM – 8:00 AM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '8:00 AM – 9:00 AM',
-    cells: [
-      { status: 'available' },
-      { status: 'unavailable' },
-      { status: 'available' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '9:00 AM – 10:00 AM',
-    cells: [
-      { status: 'available' },
-      { status: 'unavailable' },
-      { status: 'available' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '10:00 AM – 11:00 AM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'class' },
-      { status: 'unavailable' },
-      { status: 'class' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '11:00 AM – 12:00 PM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'class' },
-      { status: 'unavailable' },
-      { status: 'class' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '12:00 PM – 1:00 PM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '1:00 PM – 2:00 PM',
-    cells: [
-      { status: 'available' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'available' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '2:00 PM – 3:00 PM',
-    cells: [
-      { status: 'available' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'available' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '3:00 PM – 4:00 PM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'office-hours' },
-      { status: 'unavailable' },
-      { status: 'office-hours' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '4:00 PM – 5:00 PM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'office-hours' },
-      { status: 'unavailable' },
-      { status: 'office-hours' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '5:00 PM – 6:00 PM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '6:00 PM – 7:00 PM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '7:00 PM – 8:00 PM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-  {
-    time: '8:00 PM – 9:00 PM',
-    cells: [
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-      { status: 'unavailable' },
-    ],
-  },
-];
+// ---------- Schedule tab time-row axis ----------
+// The Schedule tab shows one row per hour from 7 AM to 9 PM. This is just
+// the display axis (like the weekday header row) — it carries no faculty
+// data of its own. Every cell's actual status comes from real rows in the
+// `availability_slots` table, matched by which hour-row and day they fall
+// on, so a faculty member sees only slots they actually created.
+const SCHEDULE_ROW_START_HOURS = Array.from({ length: 14 }, (_, i) => 7 + i); // 7 AM .. 8 PM start hours (last row ends 9 PM)
 
-const INITIAL_RECURRING: RecurringSchedule[] = [
-  {
-    id: 'r1',
-    days: 'Mon, Sat',
-    time: '1:00 PM – 3:00 PM · Online',
-    mode: 'Online',
-    dateRange: 'Sep 7, 2026 – Dec 27, 2026',
-  },
-];
-
-const INITIAL_SLOTS: TimeSlot[] = [
-  {
-    id: 's1',
-    time: '1:00 PM - 3:00 PM',
-    mode: 'Online',
-    location: 'Google Meet',
-    enabled: true,
-  },
-];
-
-// Parses a range string that uses either an en dash ("8:00 AM – 10:00 AM",
-// used by the fixed schedule rows) or a hyphen ("1:00 PM - 3:00 PM", used by
-// availability slots) into start/end minutes-after-midnight.
-function parseTimeRangeString(range: string): { start: number; end: number } | null {
-  const parts = range.split(/\s[–-]\s/).map((part) => part.trim());
-  if (parts.length !== 2) return null;
-
-  const start = parseTimeInput(parts[0]);
-  const end = parseTimeInput(parts[1]);
-  if (start === null || end === null) return null;
-
-  return { start, end };
+function formatHourLabel(hour24: number): string {
+  const period = hour24 >= 12 ? 'PM' : 'AM';
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour}:00 ${period}`;
 }
+
+function formatHourRangeLabel(startHour: number): string {
+  return `${formatHourLabel(startHour)} – ${formatHourLabel((startHour + 1) % 24)}`;
+}
+
+const SCHEDULE_TIME_ROWS = SCHEDULE_ROW_START_HOURS.map((startHour) => ({
+  label: formatHourRangeLabel(startHour),
+  start: startHour * 60,
+  end: (startHour + 1) * 60,
+}));
 
 function timeRangesOverlap(
   aStart: number,
@@ -360,69 +181,146 @@ function timeRangesOverlap(
   return aStart < bEnd && bStart < aEnd;
 }
 
-const TIME_ROW_RANGES = SCHEDULE_ROWS.map((row) =>
-  parseTimeRangeString(row.time),
-);
+// ---------- Postgres time <-> minutes-after-midnight helpers ----------
+// `time without time zone` columns come back as "HH:MM:SS" strings.
 
-// Faculty availability lives in `daySlots`, keyed by real ISO calendar date
-// (e.g. "2026-09-08"). This overlays enabled slots onto the fixed weekly
-// grid so a newly added time slot shows up as "Available" on the Faculty
-// Schedule tab for the matching real date, without touching cells that
-// already have a class or office hours. `weekDates` is the 7 real Date
+function dbTimeToMinutes(dbTime: string): number | null {
+  const match = dbTime.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function minutesToDbTime(minutesAfterMidnight: number): string {
+  const hour = Math.floor(minutesAfterMidnight / 60);
+  const minute = minutesAfterMidnight % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+}
+
+// Faculty availability lives entirely in the real `availability_slots`
+// table, keyed here by real ISO calendar date (e.g. "2026-09-08") with
+// each enabled slot's minute range and real consultation mode for that
+// day. Every cell in the grid is built fresh from that real data — there
+// is no fallback/placeholder status. `weekDates` is the 7 real Date
 // objects (Mon..Sun) currently being displayed.
 function buildDisplayRows(
-  daySlots: Record<string, TimeSlot[]>,
+  slotRangesByDate: Record<
+    string,
+    { start: number; end: number; mode: ConsultationMode }[]
+  >,
   weekDates: Date[],
 ): ScheduleRow[] {
-  return SCHEDULE_ROWS.map((row, rowIndex) => {
-    const range = TIME_ROW_RANGES[rowIndex];
+  return SCHEDULE_TIME_ROWS.map(({ label, start, end }) => {
+    const cells: ScheduleCell[] = weekDates.map((date) => {
+      const rangesForDay = slotRangesByDate[toISODate(date)] ?? [];
 
-    const cells = row.cells.map((cell, colIndex) => {
-      if (cell.status !== 'unavailable' || !range) return cell;
+      const overlapping = rangesForDay.find((slotRange) =>
+        timeRangesOverlap(start, end, slotRange.start, slotRange.end),
+      );
 
-      const dateForColumn = weekDates[colIndex];
-      if (!dateForColumn) return cell;
+      if (!overlapping) return { status: 'unavailable' };
 
-      const slotsForDay = daySlots[toISODate(dateForColumn)] ?? [];
-
-      const hasAvailableSlot = slotsForDay.some((slot) => {
-        if (!slot.enabled) return false;
-        const slotRange = parseTimeRangeString(slot.time);
-        if (!slotRange) return false;
-        return timeRangesOverlap(
-          range.start,
-          range.end,
-          slotRange.start,
-          slotRange.end,
-        );
-      });
-
-      return hasAvailableSlot ? { status: 'available' as SlotStatus } : cell;
+      return {
+        status: overlapping.mode === 'Online' ? 'online' : 'face-to-face',
+      };
     });
 
-    return { time: row.time, cells };
+    return { time: label, cells };
   });
 }
 
 type FacultyViewProps = {
-  facultyName?: string;
-  facultyId?: string;
-  facultyEmail?: string;
+  session: Session;
   initialTab?: FacultyTab;
+  searchQuery?: string;
 };
 
 export default function FacultyView({
-  facultyName = 'Maria Clara',
-  facultyId = 'F001',
-  facultyEmail = 'maria.clara@school.edu',
+  session,
   initialTab = 'profile',
+  searchQuery = '',
 }: FacultyViewProps) {
+  const facultyId = session.user.id;
   const [activeTab, setActiveTab] = useState<FacultyTab>(initialTab);
-  const [daySlots, setDaySlots] = usePersistentState<
-    Record<string, TimeSlot[]>
-  >('appointpro.daySlots', () => ({
-    [toISODate(new Date())]: INITIAL_SLOTS,
-  }));
+
+  // The Schedule tab only ever shows the current real week, so its overlay
+  // data is loaded once here (rather than inside ScheduleTab) so switching
+  // tabs and back doesn't refetch unnecessarily.
+  const weekDates = useMemo(() => getWeekDates(startOfWeek(new Date())), []);
+  const [weekSlotRanges, setWeekSlotRanges] = useState<
+    Record<string, { start: number; end: number; mode: ConsultationMode }[]>
+  >({});
+
+  useEffect(() => {
+    let isMounted = true;
+    const from = toISODate(weekDates[0]);
+    const to = toISODate(weekDates[6]);
+
+    const load = () => {
+      supabase
+        .from('availability_slots')
+        .select('date, start_time, end_time, mode')
+        .eq('faculty_id', facultyId)
+        .eq('enabled', true)
+        .gte('date', from)
+        .lte('date', to)
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            console.log('Failed to load this week\'s availability:', error.message);
+            return;
+          }
+          const byDate: Record<
+            string,
+            { start: number; end: number; mode: ConsultationMode }[]
+          > = {};
+          (data ?? []).forEach((row) => {
+            const start = dbTimeToMinutes(row.start_time);
+            const end = dbTimeToMinutes(row.end_time);
+            if (start === null || end === null) return;
+            const mode = (row.mode as ConsultationMode) ?? 'Face-to-Face';
+            byDate[row.date] = [
+              ...(byDate[row.date] ?? []),
+              { start, end, mode },
+            ];
+          });
+          setWeekSlotRanges(byDate);
+        });
+    };
+
+    load();
+
+    const channel = supabase
+      .channel(`faculty-week-slots-${facultyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'availability_slots',
+          filter: `faculty_id=eq.${facultyId}`,
+        },
+        () => load(),
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [facultyId, weekDates]);
+
+  // Jump to the Directory tab the moment the faculty starts typing a new
+  // search (but never on mount/deep-link, even if a leftover search query
+  // from a previous visit is still sitting in the search box).
+  const previousSearchRef = useRef(searchQuery);
+  useEffect(() => {
+    const wasEmpty = previousSearchRef.current.trim().length === 0;
+    const isNowFilled = searchQuery.trim().length > 0;
+    if (wasEmpty && isNowFilled) {
+      setActiveTab('directory');
+    }
+    previousSearchRef.current = searchQuery;
+  }, [searchQuery]);
 
   return (
     <div className="fv-page">
@@ -432,6 +330,7 @@ export default function FacultyView({
             { id: 'profile', label: 'Profile' },
             { id: 'schedule', label: 'Schedule' },
             { id: 'settings', label: 'Availability' },
+            { id: 'directory', label: 'Directory' },
           ] as { id: FacultyTab; label: string }[]
         ).map((tab) => (
           <button
@@ -445,18 +344,159 @@ export default function FacultyView({
         ))}
       </div>
 
-      {activeTab === 'profile' && (
-        <ProfileTab
-          facultyName={facultyName}
-          facultyId={facultyId}
-          facultyEmail={facultyEmail}
-        />
+      {activeTab === 'profile' && <ProfileTab session={session} />}
+
+      {activeTab === 'schedule' && (
+        <ScheduleTab weekDates={weekDates} weekSlotRanges={weekSlotRanges} />
       )}
 
-      {activeTab === 'schedule' && <ScheduleTab daySlots={daySlots} />}
+      {activeTab === 'settings' && <AvailabilityTab facultyId={facultyId} />}
 
-      {activeTab === 'settings' && (
-        <AvailabilityTab daySlots={daySlots} onDaySlotsChange={setDaySlots} />
+      {activeTab === 'directory' && (
+        <DirectoryTab searchQuery={searchQuery} currentFacultyId={facultyId} />
+      )}
+    </div>
+  );
+}
+
+type FacultyDirectoryStatus = 'Available' | 'Unavailable';
+
+type FacultyDirectoryMember = {
+  id: string;
+  name: string;
+  role: string;
+  department: string;
+  status: FacultyDirectoryStatus;
+};
+
+// Shape returned by the `faculty` table embedded query below.
+type DbDirectoryRow = {
+  profile_id: string;
+  department: string | null;
+  role_title: string;
+  is_available: boolean;
+  profiles: { full_name: string } | { full_name: string }[] | null;
+};
+
+function DirectoryTab({
+  searchQuery,
+  currentFacultyId,
+}: {
+  searchQuery: string;
+  currentFacultyId: string;
+}) {
+  const [members, setMembers] = useState<FacultyDirectoryMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = () => {
+      supabase
+        .from('faculty')
+        .select('profile_id, department, role_title, is_available, profiles ( full_name )')
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            setLoadError(error.message);
+            setLoading(false);
+            return;
+          }
+
+          const rows = (data ?? []) as unknown as DbDirectoryRow[];
+          setMembers(
+            rows.map((row) => {
+              const profile = Array.isArray(row.profiles)
+                ? row.profiles[0]
+                : row.profiles;
+              return {
+                id: row.profile_id,
+                name: profile?.full_name ?? 'Unnamed Faculty',
+                role: row.role_title,
+                department: row.department ?? '—',
+                status: row.is_available ? 'Available' : 'Unavailable',
+              };
+            }),
+          );
+          setLoadError(null);
+          setLoading(false);
+        });
+    };
+
+    load();
+
+    const channel = supabase
+      .channel('faculty-directory')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'faculty' },
+        () => load(),
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const query = searchQuery.trim().toLowerCase();
+  const filtered = members.filter((member) =>
+    member.name.toLowerCase().includes(query),
+  );
+
+  return (
+    <div className="fv-card fv-directory-card">
+      <h2>Faculty Directory</h2>
+      <p className="fv-schedule-subtitle">
+        Browse other faculty members{query ? ` matching "${searchQuery}"` : ''}.
+      </p>
+
+      {loading ? (
+        <p className="fv-empty-slots">Loading faculty directory…</p>
+      ) : loadError ? (
+        <p className="fv-empty-slots">
+          Couldn't load the directory: {loadError}
+        </p>
+      ) : filtered.length === 0 ? (
+        <p className="fv-empty-slots">
+          No faculty members match "{searchQuery}".
+        </p>
+      ) : (
+        <div className="fv-directory-list">
+          {filtered.map((member) => (
+            <button
+              key={member.id}
+              type="button"
+              className="fv-directory-row"
+              onClick={() =>
+                window.alert('Viewing another faculty profile is not built yet.')
+              }
+            >
+              <span className="fv-directory-avatar">
+                <UserIcon />
+              </span>
+
+              <span className="fv-directory-info">
+                <span className="fv-directory-name">
+                  {member.name}
+                  {member.id === currentFacultyId ? ' (You)' : ''}
+                </span>
+                <span className="fv-directory-role">
+                  {member.role} · {member.department}
+                </span>
+                <span
+                  className={`fv-directory-status fv-directory-status-${member.status.toLowerCase()}`}
+                >
+                  {member.status}
+                </span>
+              </span>
+
+              <ChevronRightIcon />
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -466,37 +506,86 @@ type PersonalInfo = {
   name: string;
   email: string;
   department: string;
-  consultationTypes: string;
 };
 
-function ProfileTab({
-  facultyName,
-  facultyId,
-  facultyEmail,
-}: {
-  facultyName: string;
-  facultyId: string;
-  facultyEmail: string;
-}) {
-  const [savedInfo, setSavedInfo] = usePersistentState<PersonalInfo>(
-    'appointpro.personalInfo',
-    () => ({
-      name: facultyName,
-      email: facultyEmail,
-      department: 'CITE Department',
-      consultationTypes: 'Face-to-Face, Online',
-    }),
-  );
+type DbProfileRow = { full_name: string; email: string; avatar_url: string | null };
+type DbFacultyRow = {
+  faculty_id: string;
+  department: string | null;
+  role_title: string;
+  is_available: boolean;
+};
+
+function ProfileTab({ session }: { session: Session }) {
+  const facultyId = session.user.id;
+
+  const [loading, setLoading] = useState(true);
+  const [facultyCode, setFacultyCode] = useState('');
+  const [roleTitle, setRoleTitle] = useState('Instructor');
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [savedInfo, setSavedInfo] = useState<PersonalInfo>({
+    name: '',
+    email: session.user.email ?? '',
+    department: '',
+  });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<PersonalInfo>(savedInfo);
+  const [formAvailable, setFormAvailable] = useState(true);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = usePersistentState<string | null>(
-    'appointpro.avatarUrl',
-    null,
-  );
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([
+      supabase
+        .from('profiles')
+        .select('full_name, email, avatar_url')
+        .eq('id', facultyId)
+        .single(),
+      supabase
+        .from('faculty')
+        .select('faculty_id, department, role_title, is_available')
+        .eq('profile_id', facultyId)
+        .single(),
+    ]).then(([profileRes, facultyRes]) => {
+      if (!isMounted) return;
+
+      if (profileRes.error) {
+        console.log('Failed to load profile:', profileRes.error.message);
+      }
+      if (facultyRes.error) {
+        console.log('Failed to load faculty record:', facultyRes.error.message);
+      }
+
+      const profileData = profileRes.data as DbProfileRow | null;
+      const facultyData = facultyRes.data as DbFacultyRow | null;
+
+      const info: PersonalInfo = {
+        name: profileData?.full_name ?? '',
+        email: profileData?.email ?? session.user.email ?? '',
+        department: facultyData?.department ?? '',
+      };
+
+      setSavedInfo(info);
+      setForm(info);
+      setAvatarUrl(profileData?.avatar_url ?? null);
+      setFacultyCode(facultyData?.faculty_id ?? '');
+      setRoleTitle(facultyData?.role_title ?? 'Instructor');
+      setIsAvailable(facultyData?.is_available ?? true);
+      setFormAvailable(facultyData?.is_available ?? true);
+      setLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [facultyId, session.user.email]);
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -504,12 +593,30 @@ function ProfileTab({
 
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setAvatarUrl(reader.result);
-      }
+      if (typeof reader.result !== 'string') return;
+      const dataUrl = reader.result;
+      setAvatarUrl(dataUrl);
+      supabase
+        .from('profiles')
+        .update({ avatar_url: dataUrl })
+        .eq('id', facultyId)
+        .then(({ error }) => {
+          if (error) window.alert(`Could not save your new photo: ${error.message}`);
+        });
     };
     reader.readAsDataURL(file);
     event.target.value = '';
+  };
+
+  const removeAvatar = () => {
+    setAvatarUrl(null);
+    supabase
+      .from('profiles')
+      .update({ avatar_url: null })
+      .eq('id', facultyId)
+      .then(({ error }) => {
+        if (error) window.alert(`Could not remove your photo: ${error.message}`);
+      });
   };
 
   const updateField = (field: keyof PersonalInfo) => (value: string) =>
@@ -517,10 +624,11 @@ function ProfileTab({
 
   const startEditing = () => {
     setForm(savedInfo);
+    setFormAvailable(isAvailable);
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
-    setPasswordError(null);
+    setFormError(null);
     setIsEditing(true);
   };
 
@@ -529,10 +637,12 @@ function ProfileTab({
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
-    setPasswordError(null);
+    setFormError(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
+
     const wantsPasswordChange = !!(
       currentPassword ||
       newPassword ||
@@ -541,28 +651,93 @@ function ProfileTab({
 
     if (wantsPasswordChange) {
       if (!currentPassword || !newPassword || !confirmPassword) {
-        setPasswordError(
-          'Fill in all three password fields, or leave them all blank.',
-        );
+        setFormError('Fill in all three password fields, or leave them all blank.');
         return;
       }
       if (newPassword.length < 8) {
-        setPasswordError('New password must be at least 8 characters.');
+        setFormError('New password must be at least 8 characters.');
         return;
       }
       if (newPassword !== confirmPassword) {
-        setPasswordError('New passwords do not match.');
+        setFormError('New passwords do not match.');
         return;
       }
     }
 
+    setSaving(true);
+    setFormError(null);
+
+    if (wantsPasswordChange) {
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: savedInfo.email,
+        password: currentPassword,
+      });
+      if (reauthError) {
+        setFormError('Current password is incorrect.');
+        setSaving(false);
+        return;
+      }
+
+      const { error: passwordUpdateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (passwordUpdateError) {
+        setFormError(`Could not update your password: ${passwordUpdateError.message}`);
+        setSaving(false);
+        return;
+      }
+    }
+
+    if (form.email !== savedInfo.email) {
+      const { error: emailError } = await supabase.auth.updateUser({
+        email: form.email,
+      });
+      if (emailError) {
+        setFormError(`Could not update your login email: ${emailError.message}`);
+        setSaving(false);
+        return;
+      }
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ full_name: form.name, email: form.email })
+      .eq('id', facultyId);
+
+    const { error: facultyError } = await supabase
+      .from('faculty')
+      .update({ department: form.department, is_available: formAvailable })
+      .eq('profile_id', facultyId);
+
+    setSaving(false);
+
+    if (profileError || facultyError) {
+      setFormError(
+        `Some changes could not be saved: ${
+          profileError?.message ?? facultyError?.message
+        }`,
+      );
+      return;
+    }
+
     setSavedInfo(form);
-    setPasswordError(null);
+    setIsAvailable(formAvailable);
+    setFormError(null);
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setIsEditing(false);
   };
+
+  if (loading) {
+    return (
+      <div className="fv-grid-two">
+        <div className="fv-card">
+          <p className="fv-empty-slots">Loading your profile…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fv-grid-two">
@@ -591,7 +766,7 @@ function ProfileTab({
             <button
               type="button"
               className="fv-avatar-remove"
-              onClick={() => setAvatarUrl(null)}
+              onClick={removeAvatar}
             >
               Remove photo
             </button>
@@ -602,7 +777,7 @@ function ProfileTab({
           <div className="fv-edit-form">
             <div className="fv-edit-field">
               <label htmlFor="pi-id">Employee ID</label>
-              <input id="pi-id" type="text" value={facultyId} disabled />
+              <input id="pi-id" type="text" value={facultyCode} disabled />
             </div>
 
             <div className="fv-edit-field">
@@ -641,16 +816,17 @@ function ProfileTab({
             </div>
 
             <div className="fv-edit-field">
-              <label htmlFor="pi-consultation">Consultation Type</label>
-              <input
-                id="pi-consultation"
-                type="text"
-                value={form.consultationTypes}
-                onChange={(event) =>
-                  updateField('consultationTypes')(event.target.value)
-                }
-                placeholder="e.g. Face-to-Face, Online"
-              />
+              <label htmlFor="pi-available">Available for consultations</label>
+              <button
+                type="button"
+                id="pi-available"
+                role="switch"
+                aria-checked={formAvailable}
+                className={`fv-toggle${formAvailable ? ' fv-toggle-on' : ''}`}
+                onClick={() => setFormAvailable((prev) => !prev)}
+              >
+                <span className="fv-toggle-knob" />
+              </button>
             </div>
 
             <div className="fv-edit-divider" />
@@ -670,7 +846,7 @@ function ProfileTab({
                 value={currentPassword}
                 onChange={(event) => {
                   setCurrentPassword(event.target.value);
-                  setPasswordError(null);
+                  setFormError(null);
                 }}
                 placeholder="Enter your current password"
               />
@@ -684,7 +860,7 @@ function ProfileTab({
                 value={newPassword}
                 onChange={(event) => {
                   setNewPassword(event.target.value);
-                  setPasswordError(null);
+                  setFormError(null);
                 }}
                 placeholder="Create a new password"
               />
@@ -700,7 +876,7 @@ function ProfileTab({
                 value={confirmPassword}
                 onChange={(event) => {
                   setConfirmPassword(event.target.value);
-                  setPasswordError(null);
+                  setFormError(null);
                 }}
                 placeholder="Confirm your new password"
               />
@@ -714,22 +890,22 @@ function ProfileTab({
               </p>
             </div>
 
-            {passwordError && (
-              <p className="fv-edit-error">{passwordError}</p>
-            )}
+            {formError && <p className="fv-edit-error">{formError}</p>}
 
             <div className="fv-edit-actions">
               <button
                 type="button"
                 className="fv-edit-save"
                 onClick={handleSave}
+                disabled={saving}
               >
-                Save Changes
+                {saving ? 'Saving…' : 'Save Changes'}
               </button>
               <button
                 type="button"
                 className="fv-edit-cancel"
                 onClick={cancelEditing}
+                disabled={saving}
               >
                 Cancel
               </button>
@@ -744,7 +920,7 @@ function ProfileTab({
               </div>
               <div className="fv-info-row">
                 <dt>Faculty ID:</dt>
-                <dd>{facultyId}</dd>
+                <dd>{facultyCode}</dd>
               </div>
               <div className="fv-info-row">
                 <dt>Email:</dt>
@@ -752,15 +928,15 @@ function ProfileTab({
               </div>
               <div className="fv-info-row">
                 <dt>Department:</dt>
-                <dd>{savedInfo.department}</dd>
+                <dd>{savedInfo.department || '—'}</dd>
               </div>
               <div className="fv-info-row">
-                <dt>Consultation Type:</dt>
-                <dd>{savedInfo.consultationTypes}</dd>
+                <dt>Availability:</dt>
+                <dd>{isAvailable ? 'Available' : 'Unavailable'}</dd>
               </div>
               <div className="fv-info-row">
                 <dt>Position:</dt>
-                <dd>Professor</dd>
+                <dd>{roleTitle}</dd>
               </div>
             </dl>
 
@@ -779,53 +955,53 @@ function ProfileTab({
         <h2>About</h2>
         <p className="fv-about-text">
           A dedicated educator with a passion for student success and academic
-          excellence. Specializes in computer science and information systems.
+          excellence.
         </p>
 
         <h3 className="fv-subheading">Contact Information</h3>
-        <div className="fv-contact-row">
-          <PhoneIcon />
-          <span>+63 912 345 6789</span>
-        </div>
         <div className="fv-contact-row">
           <MailIcon />
           <span>{savedInfo.email}</span>
         </div>
         <div className="fv-contact-row">
           <BuildingIcon />
-          <span>{savedInfo.department}</span>
+          <span>{savedInfo.department || 'No department set'}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function ScheduleTab({ daySlots }: { daySlots: Record<string, TimeSlot[]> }) {
-  const weekDates = useMemo(() => getWeekDates(startOfWeek(new Date())), []);
+function ScheduleTab({
+  weekDates,
+  weekSlotRanges,
+}: {
+  weekDates: Date[];
+  weekSlotRanges: Record<
+    string,
+    { start: number; end: number; mode: ConsultationMode }[]
+  >;
+}) {
   const displayRows = useMemo(
-    () => buildDisplayRows(daySlots, weekDates),
-    [daySlots, weekDates],
+    () => buildDisplayRows(weekSlotRanges, weekDates),
+    [weekSlotRanges, weekDates],
+  );
+
+  const hasAnySlotThisWeek = Object.values(weekSlotRanges).some(
+    (ranges) => ranges.length > 0,
   );
 
   return (
     <div className="fv-card fv-schedule-card">
-      <div className="fv-schedule-header">
+      <div className="fv-schedule-header fv-schedule-header-sticky">
         <div>
           <h2>Faculty Schedule</h2>
           <p className="fv-schedule-subtitle">
-            Manage your weekly schedule and availability.
+            {hasAnySlotThisWeek
+              ? 'Your real consultation availability for this week.'
+              : 'No availability set for this week yet — add slots from the Availability tab.'}
           </p>
         </div>
-
-        <button
-          type="button"
-          className="fv-add-schedule-button"
-          onClick={() =>
-            window.alert('The add-schedule form is not built yet.')
-          }
-        >
-          <PlusIcon /> Add Schedule
-        </button>
       </div>
 
       <div className="fv-schedule-table-wrap">
@@ -857,14 +1033,6 @@ function ScheduleTab({ daySlots }: { daySlots: Record<string, TimeSlot[]> }) {
                     <ScheduleCellBadge status={cell.status} />
                   </td>
                 ))}
-                <td className="fv-schedule-actions">
-                  <button type="button" aria-label="Edit row">
-                    <EditIcon />
-                  </button>
-                  <button type="button" aria-label="Delete row">
-                    <TrashIcon />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
@@ -873,13 +1041,10 @@ function ScheduleTab({ daySlots }: { daySlots: Record<string, TimeSlot[]> }) {
 
       <div className="fv-legend">
         <span className="fv-legend-item">
-          <span className="fv-legend-dot fv-dot-class" /> Class
+          <span className="fv-legend-dot fv-dot-face-to-face" /> Face-to-Face
         </span>
         <span className="fv-legend-item">
-          <span className="fv-legend-dot fv-dot-office" /> Office Hours
-        </span>
-        <span className="fv-legend-item">
-          <span className="fv-legend-dot fv-dot-available" /> Available
+          <span className="fv-legend-dot fv-dot-online" /> Online
         </span>
         <span className="fv-legend-item">
           <span className="fv-legend-dot fv-dot-unavailable" /> Unavailable
@@ -895,9 +1060,8 @@ function ScheduleCellBadge({ status }: { status: SlotStatus }) {
   }
 
   const labelByStatus: Record<Exclude<SlotStatus, 'unavailable'>, string> = {
-    available: 'Available',
-    class: 'Class',
-    'office-hours': 'Office Hours',
+    'face-to-face': 'Face-to-Face',
+    online: 'Online',
   };
 
   return (
@@ -906,7 +1070,6 @@ function ScheduleCellBadge({ status }: { status: SlotStatus }) {
     </span>
   );
 }
-
 // Accepts typed times such as "9:00 AM", "9 PM", "09:00", and "13:00".
 function parseTimeInput(value: string): number | null {
   const input = value.trim().replace(/\s+/g, ' ');
@@ -958,20 +1121,67 @@ function formatTime(minutesAfterMidnight: number): string {
 
   return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
 }
+// Shapes returned from Supabase for this tab.
+type DbRecurringRule = {
+  id: string;
+  days_of_week: number[];
+  start_time: string;
+  end_time: string;
+  mode: ConsultationMode;
+  location: string;
+  start_date: string;
+  end_date: string;
+};
 
-function AvailabilityTab({
-  daySlots,
-  onDaySlotsChange,
-}: {
-  daySlots: Record<string, TimeSlot[]>;
-  onDaySlotsChange: (
-    updater: (prev: Record<string, TimeSlot[]>) => Record<string, TimeSlot[]>,
-  ) => void;
-}) {
-  const [recurring, setRecurring] = usePersistentState<RecurringSchedule[]>(
-    'appointpro.recurringSchedules',
-    INITIAL_RECURRING,
-  );
+type DbAvailabilitySlot = {
+  id: string;
+  rule_id: string | null;
+  date: string;
+  start_time: string;
+  end_time: string;
+  mode: ConsultationMode;
+  location: string;
+  enabled: boolean;
+};
+
+function mapDbRecurringRule(row: DbRecurringRule): RecurringSchedule {
+  const startMin = dbTimeToMinutes(row.start_time) ?? 0;
+  const endMin = dbTimeToMinutes(row.end_time) ?? 0;
+  const daysLabel = [...row.days_of_week]
+    .sort((a, b) => a - b)
+    .map((d) => DAY_NAMES_SHORT[d])
+    .join(', ');
+  const formatFullDate = (iso: string) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+  return {
+    id: row.id,
+    days: daysLabel,
+    time: `${formatTime(startMin)} - ${formatTime(endMin)} · ${row.mode}`,
+    mode: row.mode,
+    dateRange: `${formatFullDate(row.start_date)} – ${formatFullDate(row.end_date)}`,
+  };
+}
+
+function mapDbSlot(row: DbAvailabilitySlot): TimeSlot {
+  const startMin = dbTimeToMinutes(row.start_time) ?? 0;
+  const endMin = dbTimeToMinutes(row.end_time) ?? 0;
+  return {
+    id: row.id,
+    time: `${formatTime(startMin)} - ${formatTime(endMin)}`,
+    mode: row.mode,
+    location: row.location,
+    enabled: row.enabled,
+  };
+}
+
+function AvailabilityTab({ facultyId }: { facultyId: string }) {
+  const [recurring, setRecurring] = useState<RecurringSchedule[]>([]);
+  const [loadingRecurring, setLoadingRecurring] = useState(true);
   const [showRecurringForm, setShowRecurringForm] = useState(false);
   const [recurringDays, setRecurringDays] = useState<number[]>([1, 3]);
   const [recurringStartText, setRecurringStartText] = useState('1:00 PM');
@@ -981,6 +1191,7 @@ function AvailabilityTab({
   const [recurringLocation, setRecurringLocation] = useState('');
   const [recurringWeeks, setRecurringWeeks] = useState('16');
   const [recurringError, setRecurringError] = useState<string | null>(null);
+  const [creatingRecurring, setCreatingRecurring] = useState(false);
 
   const today = new Date();
   const [weekAnchor, setWeekAnchor] = useState(() => startOfWeek(today));
@@ -1007,6 +1218,54 @@ function AvailabilityTab({
   // know when they're editing availability for a week it won't reflect on.
   const isCurrentWeek = isSameDay(weekAnchor, startOfWeek(today));
 
+  // ---------- Load recurring rules for this faculty member ----------
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = () => {
+      supabase
+        .from('recurring_rules')
+        .select(
+          'id, days_of_week, start_time, end_time, mode, location, start_date, end_date',
+        )
+        .eq('faculty_id', facultyId)
+        .order('created_at', { ascending: true })
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            console.log('Failed to load recurring schedules:', error.message);
+            setLoadingRecurring(false);
+            return;
+          }
+          setRecurring(
+            (data as unknown as DbRecurringRule[]).map(mapDbRecurringRule),
+          );
+          setLoadingRecurring(false);
+        });
+    };
+
+    load();
+
+    const channel = supabase
+      .channel(`recurring-rules-${facultyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recurring_rules',
+          filter: `faculty_id=eq.${facultyId}`,
+        },
+        () => load(),
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [facultyId]);
+
   const toggleRecurringDay = (dayIndex: number) => {
     setRecurringDays((prev) =>
       prev.includes(dayIndex)
@@ -1020,17 +1279,13 @@ function AvailabilityTab({
     setShowRecurringForm((prev) => !prev);
   };
 
-  const deleteRecurring = (id: string) => {
-    setRecurring((prev) => prev.filter((rule) => rule.id !== id));
-  };
-
   const canCreateRecurring =
     recurringDays.length > 0 &&
     recurringLocation.trim().length > 0 &&
     (parseInt(recurringWeeks, 10) || 0) > 0;
 
-  const handleCreateRecurring = () => {
-    if (!canCreateRecurring) return;
+  const handleCreateRecurring = async () => {
+    if (!canCreateRecurring || creatingRecurring) return;
 
     const startMinutes = parseTimeInput(recurringStartText);
     const endMinutes = parseTimeInput(recurringEndText);
@@ -1044,12 +1299,39 @@ function AvailabilityTab({
       return;
     }
 
+    setCreatingRecurring(true);
+    setRecurringError(null);
+
     const rangeStart = new Date();
     rangeStart.setHours(0, 0, 0, 0);
     const numWeeks = parseInt(recurringWeeks, 10) || 16;
     const rangeEnd = addDaysToDate(rangeStart, numWeeks * 7 - 1);
-    const timeLabel = `${formatTime(startMinutes)} - ${formatTime(endMinutes)}`;
-    const ruleId = `rule-${Date.now()}`;
+    const location = recurringLocation.trim();
+
+    const { data: newRule, error: ruleError } = await supabase
+      .from('recurring_rules')
+      .insert({
+        faculty_id: facultyId,
+        days_of_week: recurringDays,
+        start_time: minutesToDbTime(startMinutes),
+        end_time: minutesToDbTime(endMinutes),
+        mode: recurringMode,
+        location,
+        start_date: toISODate(rangeStart),
+        end_date: toISODate(rangeEnd),
+      })
+      .select('id')
+      .single();
+
+    if (ruleError || !newRule) {
+      setRecurringError(
+        `Could not create the recurring schedule: ${
+          ruleError?.message ?? 'unknown error'
+        }`,
+      );
+      setCreatingRecurring(false);
+      return;
+    }
 
     const generatedDates: string[] = [];
     const cursor = new Date(rangeStart);
@@ -1062,56 +1344,119 @@ function AvailabilityTab({
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    onDaySlotsChange((prev) => {
-      const next = { ...prev };
-      generatedDates.forEach((iso) => {
-        const newSlot: TimeSlot = {
-          id: `${ruleId}-${iso}`,
-          time: timeLabel,
-          mode: recurringMode,
-          location: recurringLocation.trim(),
-          enabled: true,
-        };
-        next[iso] = [...(next[iso] ?? []), newSlot];
-      });
-      return next;
-    });
-
-    const daysLabel = [...recurringDays]
-      .sort((a, b) => a - b)
-      .map((d) => DAY_NAMES_SHORT[d])
-      .join(', ');
-    const formatFullDate = (date: Date) =>
-      date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-
-    setRecurring((prev) => [
-      ...prev,
-      {
-        id: ruleId,
-        days: daysLabel,
-        time: `${timeLabel} · ${recurringMode}`,
+    if (generatedDates.length > 0) {
+      const slotRows = generatedDates.map((iso) => ({
+        faculty_id: facultyId,
+        rule_id: newRule.id,
+        date: iso,
+        start_time: minutesToDbTime(startMinutes),
+        end_time: minutesToDbTime(endMinutes),
         mode: recurringMode,
-        dateRange: `${formatFullDate(rangeStart)} – ${formatFullDate(rangeEnd)}`,
-      },
-    ]);
+        location,
+        total_minutes: endMinutes - startMinutes,
+        enabled: true,
+      }));
+
+      const { error: slotsError } = await supabase
+        .from('availability_slots')
+        .insert(slotRows);
+
+      if (slotsError) {
+        window.alert(
+          `The recurring schedule was created, but generating its daily slots failed: ${slotsError.message}`,
+        );
+      }
+    }
 
     setRecurringError(null);
     setRecurringLocation('');
     setShowRecurringForm(false);
+    setCreatingRecurring(false);
+
+    if (generatedDates.includes(selectedISO)) {
+      loadSlotsRef.current?.();
+    }
   };
 
-  const slots = daySlots[selectedISO] ?? [];
+  const deleteRecurring = async (id: string) => {
+    // Slots this rule already generated may be booked (referenced by an
+    // appointment), so if a hard delete is rejected by the foreign key,
+    // detach them from the rule instead of blocking the whole operation.
+    const { error: deleteSlotsError } = await supabase
+      .from('availability_slots')
+      .delete()
+      .eq('rule_id', id);
 
-  const setSlots = (updater: (prev: TimeSlot[]) => TimeSlot[]) => {
-    onDaySlotsChange((prev) => ({
-      ...prev,
-      [selectedISO]: updater(prev[selectedISO] ?? []),
-    }));
+    if (deleteSlotsError) {
+      await supabase
+        .from('availability_slots')
+        .update({ rule_id: null })
+        .eq('rule_id', id);
+    }
+
+    const { error } = await supabase
+      .from('recurring_rules')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      window.alert(`Could not delete this recurring schedule: ${error.message}`);
+      return;
+    }
+
+    loadSlotsRef.current?.();
   };
+
+  // ---------- Load individual slots for the selected day ----------
+  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(true);
+  const loadSlotsRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = () => {
+      setLoadingSlots(true);
+      supabase
+        .from('availability_slots')
+        .select('id, rule_id, date, start_time, end_time, mode, location, enabled')
+        .eq('faculty_id', facultyId)
+        .eq('date', selectedISO)
+        .order('start_time', { ascending: true })
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            console.log('Failed to load availability slots:', error.message);
+            setLoadingSlots(false);
+            return;
+          }
+          setSlots((data as unknown as DbAvailabilitySlot[]).map(mapDbSlot));
+          setLoadingSlots(false);
+        });
+    };
+
+    loadSlotsRef.current = load;
+    load();
+
+    const channel = supabase
+      .channel(`availability-slots-${facultyId}-${selectedISO}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'availability_slots',
+          filter: `faculty_id=eq.${facultyId}`,
+        },
+        () => load(),
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [facultyId, selectedISO]);
 
   const [isAddingSlot, setIsAddingSlot] = useState(false);
   const [newSlotStart, setNewSlotStart] = useState('');
@@ -1121,17 +1466,42 @@ function AvailabilityTab({
   const [newSlotLocation, setNewSlotLocation] = useState('');
   const [slotError, setSlotError] = useState<string | null>(null);
   const [addedNotice, setAddedNotice] = useState<string | null>(null);
+  const [savingSlot, setSavingSlot] = useState(false);
 
-  const toggleSlot = (id: string) => {
+  const toggleSlot = async (id: string) => {
+    const slot = slots.find((s) => s.id === id);
+    if (!slot) return;
+
     setSlots((prev) =>
-      prev.map((slot) =>
-        slot.id === id ? { ...slot, enabled: !slot.enabled } : slot,
-      ),
+      prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)),
     );
+
+    const { error } = await supabase
+      .from('availability_slots')
+      .update({ enabled: !slot.enabled })
+      .eq('id', id);
+
+    if (error) {
+      setSlots((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, enabled: slot.enabled } : s)),
+      );
+      window.alert(`Could not update that slot: ${error.message}`);
+    }
   };
 
-  const deleteSlot = (id: string) => {
-    setSlots((prev) => prev.filter((slot) => slot.id !== id));
+  const deleteSlot = async (id: string) => {
+    const previous = slots;
+    setSlots((prev) => prev.filter((s) => s.id !== id));
+
+    const { error } = await supabase
+      .from('availability_slots')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      setSlots(previous);
+      window.alert(`Could not delete that slot: ${error.message}`);
+    }
   };
 
   const openAddSlot = () => {
@@ -1149,7 +1519,9 @@ function AvailabilityTab({
     setSlotError(null);
   };
 
-  const confirmAddSlot = () => {
+  const confirmAddSlot = async () => {
+    if (savingSlot) return;
+
     const startMinutes = parseTimeInput(newSlotStart);
     const endMinutes = parseTimeInput(newSlotEnd);
 
@@ -1174,22 +1546,37 @@ function AvailabilityTab({
 
     const time = `${formatTime(startMinutes)} - ${formatTime(endMinutes)}`;
 
-    const isDuplicate = slots.some((slot) => slot.time === time);
-
-    if (isDuplicate) {
+    if (slots.some((slot) => slot.time === time)) {
       setSlotError('That time slot already exists for this day.');
       return;
     }
 
-    const newSlot: TimeSlot = {
-      id: `s-${Date.now()}`,
-      time,
-      mode: newSlotMode,
-      location: newSlotLocation.trim(),
-      enabled: true,
-    };
+    setSavingSlot(true);
 
-    setSlots((prev) => [...prev, newSlot]);
+    const { data, error } = await supabase
+      .from('availability_slots')
+      .insert({
+        faculty_id: facultyId,
+        rule_id: null,
+        date: selectedISO,
+        start_time: minutesToDbTime(startMinutes),
+        end_time: minutesToDbTime(endMinutes),
+        mode: newSlotMode,
+        location: newSlotLocation.trim(),
+        total_minutes: endMinutes - startMinutes,
+        enabled: true,
+      })
+      .select('id, rule_id, date, start_time, end_time, mode, location, enabled')
+      .single();
+
+    setSavingSlot(false);
+
+    if (error || !data) {
+      setSlotError(`Could not add that slot: ${error?.message ?? 'unknown error'}`);
+      return;
+    }
+
+    setSlots((prev) => [...prev, mapDbSlot(data as unknown as DbAvailabilitySlot)]);
     setIsAddingSlot(false);
     setSlotError(null);
     setAddedNotice(
@@ -1333,16 +1720,17 @@ function AvailabilityTab({
               type="button"
               className="fv-add-slot-cancel"
               onClick={() => setShowRecurringForm(false)}
+              disabled={creatingRecurring}
             >
               Cancel
             </button>
             <button
               type="button"
               className="fv-add-slot-confirm"
-              disabled={!canCreateRecurring}
+              disabled={!canCreateRecurring || creatingRecurring}
               onClick={handleCreateRecurring}
             >
-              Create Recurring Schedule
+              {creatingRecurring ? 'Creating…' : 'Create Recurring Schedule'}
             </button>
           </div>
         </div>
@@ -1353,29 +1741,36 @@ function AvailabilityTab({
           recurring.length === 0 ? ' fv-availability-columns-single' : ''
         }`}
       >
-        {recurring.length > 0 && (
+        {loadingRecurring ? (
           <div className="fv-card fv-active-schedules-card">
             <h3>Active Weekly Schedules</h3>
-
-            {recurring.map((rule) => (
-              <div key={rule.id} className="fv-recurring-row">
-                <div>
-                  <p className="fv-recurring-days">{rule.days}</p>
-                  <p className="fv-recurring-detail">{rule.time}</p>
-                  <p className="fv-recurring-range">{rule.dateRange}</p>
-                </div>
-
-                <button
-                  type="button"
-                  aria-label="Delete schedule"
-                  className="fv-icon-danger"
-                  onClick={() => deleteRecurring(rule.id)}
-                >
-                  <TrashIcon />
-                </button>
-              </div>
-            ))}
+            <p className="fv-empty-slots">Loading…</p>
           </div>
+        ) : (
+          recurring.length > 0 && (
+            <div className="fv-card fv-active-schedules-card">
+              <h3>Active Weekly Schedules</h3>
+
+              {recurring.map((rule) => (
+                <div key={rule.id} className="fv-recurring-row">
+                  <div>
+                    <p className="fv-recurring-days">{rule.days}</p>
+                    <p className="fv-recurring-detail">{rule.time}</p>
+                    <p className="fv-recurring-range">{rule.dateRange}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label="Delete schedule"
+                    className="fv-icon-danger"
+                    onClick={() => deleteRecurring(rule.id)}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
         )}
 
         <div className="fv-card fv-day-picker-card">
@@ -1560,6 +1955,7 @@ function AvailabilityTab({
                 type="button"
                 className="fv-add-slot-cancel"
                 onClick={cancelAddSlot}
+                disabled={savingSlot}
               >
                 Cancel
               </button>
@@ -1568,14 +1964,17 @@ function AvailabilityTab({
                 type="button"
                 className="fv-add-slot-confirm"
                 onClick={confirmAddSlot}
+                disabled={savingSlot}
               >
-                Add Slot
+                {savingSlot ? 'Adding…' : 'Add Slot'}
               </button>
             </div>
           </div>
         )}
 
-        {slots.length === 0 ? (
+        {loadingSlots ? (
+          <p className="fv-empty-slots">Loading time slots…</p>
+        ) : slots.length === 0 ? (
           <p className="fv-empty-slots">No time slots for this day.</p>
         ) : (
           slots.map((slot) => (
@@ -1615,7 +2014,13 @@ function AvailabilityTab({
           ))
         )}
 
-        <button type="button" className="fv-save-button">
+        <button
+          type="button"
+          className="fv-save-button"
+          onClick={() =>
+            setAddedNotice('All changes here are already saved automatically.')
+          }
+        >
           Save Availability
         </button>
       </div>
@@ -1673,19 +2078,6 @@ function TrashIcon() {
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function PhoneIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M6 3h3l1.5 4-2 1.5a11 11 0 0 0 5 5l1.5-2 4 1.5v3a2 2 0 0 1-2 2C10.5 18 5 12.5 5 6a2 2 0 0 1 1-3Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
         strokeLinejoin="round"
       />
     </svg>

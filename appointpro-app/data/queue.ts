@@ -7,16 +7,36 @@ export type QueueEntry = {
   // the queue). Null until that happens — used to count down their
   // remaining time live instead of just showing a static estimate.
   startedAt: number | null;
+  // The real appointments.id this entry is tied to — used to match a
+  // queue row back to "is this me?" for the logged-in student.
+  appointmentId: string | null;
 };
 
 // Fallback used only for students with no real duration on record.
 export const AVERAGE_WAIT_MINUTES_PER_STUDENT = 10;
 
-export const INITIAL_QUEUE: QueueEntry[] = [
-  { id: 'q-1', studentName: 'Maria Santos', durationMinutes: 15, startedAt: null },
-  { id: 'q-2', studentName: 'Jose Reyes', durationMinutes: 15, startedAt: null },
-  { id: 'q-3', studentName: 'Ana Cruz', durationMinutes: 15, startedAt: null },
-];
+// Shape of a row from the real `queue_entries` table in Supabase.
+export type DbQueueEntry = {
+  id: string;
+  faculty_id: string;
+  appointment_id: string | null;
+  student_name: string;
+  duration_minutes: number;
+  started_at: string | null;
+  queue_date: string;
+  position: number;
+  created_at: string;
+};
+
+export function mapDbQueueEntry(row: DbQueueEntry): QueueEntry {
+  return {
+    id: row.id,
+    studentName: row.student_name,
+    durationMinutes: row.duration_minutes,
+    startedAt: row.started_at ? new Date(row.started_at).getTime() : null,
+    appointmentId: row.appointment_id,
+  };
+}
 
 // Seconds left for whoever is currently being served (queue[0]). Once
 // their time is up this returns 0 — it does not go negative or auto-remove

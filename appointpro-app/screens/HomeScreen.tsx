@@ -17,38 +17,8 @@ import {
   getEstimatedWaitSeconds,
   formatCountdown,
 } from '../data/queue';
-
-type NotificationItem = {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-  time: string;
-};
-
-const notifications: NotificationItem[] = [
-  {
-    id: '1',
-    icon: 'person-circle-outline',
-    title: "Today's Notification",
-    description: 'You have an appointment today.',
-    time: '8:00 AM',
-  },
-  {
-    id: '2',
-    icon: 'sync-outline',
-    title: 'Queue Update',
-    description: "You're next in line.",
-    time: '9:30 AM',
-  },
-  {
-    id: '3',
-    icon: 'megaphone-outline',
-    title: 'Faculty Announcement',
-    description: 'New schedule for this week.',
-    time: '7:30 AM',
-  },
-];
+import { NotificationItem } from '../data/notifications';
+import { Appointment } from './AppointmentsScreen';
 
 type HomeScreenProps = {
   userName?: string;
@@ -58,9 +28,18 @@ type HomeScreenProps = {
   onReviewReschedule?: () => void;
   onMenuPress?: () => void;
   onNotificationsPress?: () => void;
+  // Count of unread notifications for the logged-in student — drives the
+  // numeric badge on the bell icon. Omit/0 to hide the badge.
+  unreadCount?: number;
   onViewAppointments?: () => void;
   onViewNotifications?: () => void;
   onViewQueue?: () => void;
+  // The soonest real upcoming appointment for this student, or null if
+  // they don't have one — drives the "Upcoming Appointment" card below.
+  nextAppointment?: Appointment | null;
+  // Real notifications for the logged-in user (same data the
+  // Notifications screen uses) — only the most recent few are shown.
+  notifications?: NotificationItem[];
   // Live queue state — position and countdown are derived from this
   // instead of being passed in as precomputed numbers, so the Home
   // screen ticks down in real time right alongside the Queue screen.
@@ -76,16 +55,19 @@ type HomeScreenProps = {
 };
 
 export default function HomeScreen({
-  userName = 'NovaGPNustrative',
+  userName = 'there',
   hasPendingReschedule = false,
   cancelledNotice = null,
   onDismissCancelledNotice,
   onReviewReschedule,
   onMenuPress,
   onNotificationsPress,
+  unreadCount = 0,
   onViewAppointments,
   onViewNotifications,
   onViewQueue,
+  nextAppointment = null,
+  notifications = [],
   queue = [],
   currentQueueId = null,
   now = new Date(),
@@ -115,7 +97,13 @@ export default function HomeScreen({
         </View>
         <TouchableOpacity onPress={onNotificationsPress} style={styles.bellWrap}>
           <Ionicons name="notifications-outline" size={22} color={colors.textDark} />
-          <View style={styles.bellDot} />
+          {unreadCount > 0 && (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -148,19 +136,27 @@ export default function HomeScreen({
         </View>
 
         <View style={styles.appointmentCard}>
-          <View style={styles.appointmentRow}>
-            <View style={styles.calendarIconWrap}>
-              <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-            </View>
-            <View style={styles.appointmentTextWrap}>
-              <Text style={styles.appointmentDate}>May 15, 2026 · 10:00 AM</Text>
-              <Text style={styles.appointmentDoctor}>Dr. Juan Dela Cruz</Text>
-              <Text style={styles.appointmentDept}>Computer Studies</Text>
-            </View>
-          </View>
-          <View style={styles.modeBadge}>
-            <Text style={styles.modeBadgeText}>Face-to-Face</Text>
-          </View>
+          {nextAppointment ? (
+            <>
+              <View style={styles.appointmentRow}>
+                <View style={styles.calendarIconWrap}>
+                  <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.appointmentTextWrap}>
+                  <Text style={styles.appointmentDate}>{nextAppointment.date}</Text>
+                  <Text style={styles.appointmentDoctor}>{nextAppointment.doctorName}</Text>
+                  {!!nextAppointment.department && (
+                    <Text style={styles.appointmentDept}>{nextAppointment.department}</Text>
+                  )}
+                </View>
+              </View>
+              <View style={styles.modeBadge}>
+                <Text style={styles.modeBadgeText}>{nextAppointment.mode}</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.emptyCardText}>No upcoming appointments.</Text>
+          )}
         </View>
 
         <View style={styles.sectionHeaderRow}>
@@ -171,24 +167,28 @@ export default function HomeScreen({
         </View>
 
         <View style={styles.notificationsCard}>
-          {notifications.map((item, index) => (
-            <View
-              key={item.id}
-              style={[
-                styles.notificationRow,
-                index < notifications.length - 1 && styles.notificationRowBorder,
-              ]}
-            >
-              <View style={styles.notificationIconWrap}>
-                <Ionicons name={item.icon} size={18} color={colors.primary} />
+          {notifications.length === 0 ? (
+            <Text style={styles.emptyCardText}>No notifications yet.</Text>
+          ) : (
+            notifications.slice(0, 3).map((item, index, arr) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.notificationRow,
+                  index < arr.length - 1 && styles.notificationRowBorder,
+                ]}
+              >
+                <View style={styles.notificationIconWrap}>
+                  <Ionicons name={item.icon} size={18} color={colors.primary} />
+                </View>
+                <View style={styles.notificationTextWrap}>
+                  <Text style={styles.notificationTitle}>{item.title}</Text>
+                  <Text style={styles.notificationDesc}>{item.description}</Text>
+                </View>
+                <Text style={styles.notificationTime}>{item.time}</Text>
               </View>
-              <View style={styles.notificationTextWrap}>
-                <Text style={styles.notificationTitle}>{item.title}</Text>
-                <Text style={styles.notificationDesc}>{item.description}</Text>
-              </View>
-              <Text style={styles.notificationTime}>{item.time}</Text>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         {showQueueCard && (
@@ -263,14 +263,24 @@ const styles = StyleSheet.create({
   bellWrap: {
     padding: 2,
   },
-  bellDot: {
+  bellBadge: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F5A623',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.white,
+  },
+  bellBadgeText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
@@ -373,6 +383,12 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 11,
     fontWeight: '600',
+  },
+  emptyCardText: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 13,
+    paddingVertical: spacing.md,
   },
   notificationsCard: {
     backgroundColor: colors.white,

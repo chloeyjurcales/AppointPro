@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useAudioPlayer } from 'expo-audio';
+import * as ImagePicker from 'expo-image-picker';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { colors, spacing } from './theme';
@@ -19,13 +20,18 @@ import BookAppointmentScreen, { BookingSelection } from './screens/BookAppointme
 import BookingConfirmationScreen from './screens/BookingConfirmationScreen';
 import BookingCancellationScreen from './screens/BookingCancellationScreen';
 import AppointmentDetailsScreen from './screens/AppointmentDetailsScreen';
-import AppointmentsScreen from './screens/AppointmentsScreen';
+import AppointmentsScreen, {
+  Appointment,
+  DbStudentAppointment,
+  mapDbStudentAppointment,
+} from './screens/AppointmentsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import ProfileScreen from './screens/ProfileScreen';
-import FacultyHomeScreen from './screens/FacultyHomeScreen';
+import FacultyHomeScreen, { ScheduleItem } from './screens/FacultyHomeScreen';
 import FacultyDirectoryScreen, {
   StudentAppointment,
-  DEFAULT_APPOINTMENTS,
+  DbFacultyAppointment,
+  mapDbFacultyAppointment,
 } from './screens/FacultyDirectoryScreen';
 import StudentProfileScreen from './screens/StudentProfileScreen';
 import FacultyAvailabilityScreen from './screens/FacultyAvailabilityScreen';
@@ -67,7 +73,12 @@ import {
   toDateKey,
 } from './data/facultySlots';
 import { RecurringRule } from './data/recurringSchedule';
-import { QueueEntry, INITIAL_QUEUE, AVERAGE_WAIT_MINUTES_PER_STUDENT } from './data/queue';
+import {
+  QueueEntry,
+  DbQueueEntry,
+  mapDbQueueEntry,
+  AVERAGE_WAIT_MINUTES_PER_STUDENT,
+} from './data/queue';
 import {
   NotificationItem,
   DbNotification,
@@ -111,8 +122,16 @@ type Screen =
   | 'facultyActionSuccess'
   | 'recurringSchedule';
 
-type StudentProfileData = PersonalInformation & { studentId: string; role: string };
-type FacultyProfileData = FacultyPersonalInformation & { employeeId: string; department: string };
+type StudentProfileData = PersonalInformation & {
+  studentId: string;
+  role: string;
+  photoUri?: string;
+};
+type FacultyProfileData = FacultyPersonalInformation & {
+  employeeId: string;
+  department: string;
+  photoUri?: string;
+};
 
 type PendingReschedule = {
   reason: string;
@@ -389,6 +408,7 @@ function AppContent() {
     email: '',
     department: '',
     yearLevel: '',
+    photoUri: undefined,
   });
 
   const [facultyProfile, setFacultyProfile] = useState<FacultyProfileData>({
@@ -398,6 +418,7 @@ function AppContent() {
     email: '',
     fullDepartment: '',
     consultationTypes: 'Face-to-Face   Online',
+    photoUri: undefined,
   });
 
   // --- Real auth/session, backed by Supabase ---
@@ -440,6 +461,7 @@ function AppContent() {
         email: profile.email,
         department: student?.department ?? '',
         yearLevel: student?.year_level ?? '',
+        photoUri: profile.avatar_url ?? undefined,
       });
       setUserRole('student');
       return 'student';
@@ -457,10 +479,84 @@ function AppContent() {
       employeeId: faculty?.faculty_id ?? '',
       email: profile.email,
       fullDepartment: faculty?.department ?? '',
+      photoUri: profile.avatar_url ?? undefined,
       consultationTypes: 'Face-to-Face   Online',
     });
     setUserRole('faculty');
     return 'faculty';
+  };
+
+  // --- Profile photo upload (Supabase Storage 'avatars' bucket) ---
+  // Uploads the picked local file to a per-user path in the 'avatars'
+  // bucket and returns a cache-busted public URL, or null on failure.
+  const uploadAvatar = async (localUri: string, userId: string): Promise<string | null> => {
+    try {
+      const response = await fetch(localUri);
+      const arrayBuffer = await response.arrayBuffer();
+      const fileExt = (localUri.split('.').pop() || 'jpg').toLowerCase();
+      const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
+      // Same path every time (per user) so re-uploading overwrites the
+      // old photo instead of littering the bucket with orphaned files.
+      const filePath = `${userId}/avatar.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, arrayBuffer, { contentType, upsert: true });
+
+      if (uploadError) {
+        showToast(uploadError.message);
+        return null;
+      }
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      // Cache-bust: the path is stable, so without this the <Image>
+      // component (and other devices) would keep showing the old photo.
+      return `${data.publicUrl}?t=${Date.now()}`;
+    } catch {
+      showToast('Could not upload photo. Please try again.');
+      return null;
+    }
+  };
+
+  // Lets a signed-in student or faculty member tap their avatar, pick a
+  // photo from their device, and persist it as their real profile photo.
+  const handleChangeAvatar = async (role: 'student' | 'faculty') => {
+    if (!session) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showToast('Photo library permission is required to change your picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+
+    const publicUrl = await uploadAvatar(result.assets[0].uri, session.user.id);
+    if (!publicUrl) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', session.user.id);
+
+    if (error) {
+      showToast(error.message);
+      return;
+    }
+
+    if (role === 'student') {
+      setStudentProfile((prev) => ({ ...prev, photoUri: publicUrl }));
+    } else {
+      setFacultyProfile((prev) => ({ ...prev, photoUri: publicUrl }));
+    }
+    showToast('Profile photo updated');
   };
 
   // Restore an existing session on app launch, and keep profile data in
@@ -620,6 +716,67 @@ function AppContent() {
     };
   }, [session]);
 
+  // --- This student's own appointments (real data) — backs both the
+  // Appointments tab and the Home screen's "Upcoming Appointment" card ---
+  const [studentAppointments, setStudentAppointments] = useState<Appointment[]>([]);
+
+  useEffect(() => {
+    if (!session || userRole !== 'student') {
+      setStudentAppointments([]);
+      return;
+    }
+    let isMounted = true;
+    const studentId = session.user.id;
+
+    const loadStudentAppointments = () => {
+      supabase
+        .from('appointments')
+        .select(
+          `id, date, start_time, end_time, category, mode, location, status,
+           faculty ( department, profiles ( full_name ) )`
+        )
+        .eq('student_id', studentId)
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            console.log('Failed to load appointments:', error.message);
+            return;
+          }
+          setStudentAppointments(
+            (data as unknown as DbStudentAppointment[]).map(mapDbStudentAppointment)
+          );
+        });
+    };
+
+    loadStudentAppointments();
+
+    const channel = supabase
+      .channel(`student-appointments-${studentId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments', filter: `student_id=eq.${studentId}` },
+        () => loadStudentAppointments()
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [session, userRole]);
+
+  // The soonest real upcoming appointment, for the Home screen card.
+  const nextStudentAppointment =
+    studentAppointments
+      .filter((a) => a.status === 'upcoming')
+      .sort(
+        (a, b) =>
+          (a.dateKey ?? '').localeCompare(b.dateKey ?? '') ||
+          (a.startTime24 ?? '').localeCompare(b.startTime24 ?? '')
+      )[0] ?? null;
+
   const [scheduleByDate, setScheduleByDate] =
     useState<Record<number, ScheduleSlot[]>>(INITIAL_SCHEDULE_BY_DATE);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -708,8 +865,11 @@ function AppContent() {
   );
 
   const [studentNotifications, setStudentNotifications] = useState<NotificationItem[]>([]);
+  // Unread count for whoever is currently signed in (student or faculty)
+  // — drives the numeric badge on every bell icon in the app.
+  const unreadNotificationCount = studentNotifications.filter((n) => !n.read).length;
 
-  const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE);
+  const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [currentStudentQueueId, setCurrentStudentQueueId] = useState<string | null>(null);
 
   // Ticks every second so the live countdowns (session time remaining,
@@ -725,44 +885,126 @@ function AppContent() {
     ? hasTimeArrived(confirmedBooking.bookedTimeRangeLabel, nowTick)
     : false;
 
-  // Once the booked start time arrives, the student is automatically
-  // placed in today's queue (if they aren't already) — carrying their
-  // actual chosen appointment duration so the countdown is real.
+  // Which faculty's real queue this client cares about: faculty watch
+  // their own; students watch whichever faculty they're browsing/booked
+  // with. Both sides read/write the SAME real queue_entries rows now.
+  const queueFacultyId =
+    userRole === 'faculty' ? session?.user.id ?? null : selectedFaculty?.id ?? null;
+
+  // Loads today's real queue for that faculty, then keeps it live via
+  // Realtime — any insert/update/delete (by either side, or by the SQL
+  // triggers) refreshes everyone's view immediately.
   useEffect(() => {
-    if (hasAppointmentStarted && confirmedBooking && !currentStudentQueueId) {
-      const newEntry: QueueEntry = {
-        id: `q-${Date.now()}`,
-        studentName: studentProfile.name,
-        durationMinutes: confirmedBooking.durationMinutes,
-        startedAt: null,
-      };
-      setQueue((prev) => [...prev, newEntry]);
-      setCurrentStudentQueueId(newEntry.id);
+    if (!queueFacultyId) {
+      setQueue([]);
+      return;
     }
-  }, [hasAppointmentStarted, confirmedBooking, currentStudentQueueId]);
+    let isMounted = true;
+    const today = toDateKey(new Date());
 
-  // Whoever reaches the front of the queue is marked "now serving" (their
-  // countdown starts) the moment it happens, and — if that's the demo
-  // student — gets notified it's their turn, for their full chosen
-  // duration (e.g. "you have 60 minutes").
+    const loadQueue = () => {
+      supabase
+        .from('queue_entries')
+        .select('*')
+        .eq('faculty_id', queueFacultyId)
+        .eq('queue_date', today)
+        .order('position', { ascending: true })
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            console.log('Failed to load queue:', error.message);
+            return;
+          }
+          setQueue((data as DbQueueEntry[]).map(mapDbQueueEntry));
+        });
+    };
+
+    loadQueue();
+
+    const channel = supabase
+      .channel(`queue-${queueFacultyId}-${today}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'queue_entries',
+          filter: `faculty_id=eq.${queueFacultyId}`,
+        },
+        () => loadQueue()
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [queueFacultyId]);
+
+  // Which queue row (if any) is the logged-in student's own — derived
+  // from the real data instead of tracked by hand.
   useEffect(() => {
-    if (queue.length === 0) return;
-    const front = queue[0];
-    if (front.startedAt !== null) return;
+    if (userRole !== 'student' || !confirmedBooking) {
+      setCurrentStudentQueueId(null);
+      return;
+    }
+    const mine = queue.find((q) => q.appointmentId === confirmedBooking.bookingId);
+    setCurrentStudentQueueId(mine?.id ?? null);
+  }, [queue, confirmedBooking, userRole]);
 
-    const startedAt = Date.now();
-    setQueue((prev) =>
-      prev.map((entry) => (entry.id === front.id ? { ...entry, startedAt } : entry))
-    );
+  // Once the booked start time arrives, the student joins today's real
+  // queue for real (if they haven't already) — carrying their actual
+  // chosen appointment duration so the countdown is real.
+  const joiningQueueRef = useRef(false);
+  useEffect(() => {
+    if (
+      !hasAppointmentStarted ||
+      !confirmedBooking ||
+      !session ||
+      !selectedFaculty ||
+      joiningQueueRef.current
+    ) {
+      return;
+    }
+    const alreadyQueued = queue.some((q) => q.appointmentId === confirmedBooking.bookingId);
+    if (alreadyQueued) return;
 
-    if (front.id === currentStudentQueueId) {
-      addStudentNotification({
-        icon: 'time-outline',
-        title: "It's Your Turn",
-        description: `Your appointment with ${facultyProfile.name} has started — you have ${front.durationMinutes} minute${front.durationMinutes === 1 ? '' : 's'}.`,
+    joiningQueueRef.current = true;
+    supabase
+      .from('queue_entries')
+      .insert({
+        faculty_id: selectedFaculty.id,
+        appointment_id: confirmedBooking.bookingId,
+        student_name: studentProfile.name,
+        duration_minutes: confirmedBooking.durationMinutes,
+      })
+      .then(({ error }) => {
+        joiningQueueRef.current = false;
+        if (error) console.log('Failed to join queue:', error.message);
+        // The realtime subscription above picks up the new row itself.
       });
-    }
-  }, [queue, currentStudentQueueId, facultyProfile.name]);
+  }, [hasAppointmentStarted, confirmedBooking, session, selectedFaculty, queue]);
+
+  // Only the owning faculty is allowed to write queue_entries (per RLS),
+  // so only their client marks the front of their own queue as "now
+  // serving" — the notify_queue_turn DB trigger handles telling the
+  // right student the moment this update lands.
+  const startingQueueEntryRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (userRole !== 'faculty' || queue.length === 0) return;
+    const front = queue[0];
+    if (front.startedAt !== null || startingQueueEntryRef.current === front.id) return;
+
+    startingQueueEntryRef.current = front.id;
+    supabase
+      .from('queue_entries')
+      .update({ started_at: new Date().toISOString() })
+      .eq('id', front.id)
+      .then(({ error }) => {
+        startingQueueEntryRef.current = null;
+        if (error) console.log('Failed to start queue entry:', error.message);
+      });
+  }, [userRole, queue]);
 
 
   const [selectedStudent, setSelectedStudent] = useState<StudentAppointment | null>(null);
@@ -771,8 +1013,78 @@ function AppContent() {
   // Directory tab. Kept in state (rather than a static constant) so that
   // faculty-initiated reschedules/cancellations actually update what's
   // shown there.
-  const [facultyAppointments, setFacultyAppointments] =
-    useState<StudentAppointment[]>(DEFAULT_APPOINTMENTS);
+  // The faculty member's list of student appointments shown in the
+  // Directory tab — loaded from the real `appointments` table below and
+  // kept live via Realtime.
+  const [facultyAppointments, setFacultyAppointments] = useState<StudentAppointment[]>([]);
+  const [facultyAppointmentsLoading, setFacultyAppointmentsLoading] = useState(false);
+
+  // Loads the logged-in faculty's real appointments (joined with the
+  // booking student's profile) for the Directory tab, then keeps it live
+  // via Realtime so a new booking/cancellation shows up without a refetch.
+  useEffect(() => {
+    if (!session || userRole !== 'faculty') {
+      setFacultyAppointments([]);
+      return;
+    }
+    let isMounted = true;
+    const facultyId = session.user.id;
+
+    const loadFacultyAppointments = () => {
+      setFacultyAppointmentsLoading(true);
+      supabase
+        .from('appointments')
+        .select(
+          `id, student_id, date, start_time, end_time, category, mode, location, status, meeting_link,
+           students ( student_id, department, year_level, profiles ( full_name, email ) )`
+        )
+        .eq('faculty_id', facultyId)
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .then(({ data, error }) => {
+          if (!isMounted) return;
+          setFacultyAppointmentsLoading(false);
+          if (error) {
+            console.log('Failed to load faculty appointments:', error.message);
+            return;
+          }
+          setFacultyAppointments(
+            (data as unknown as DbFacultyAppointment[]).map(mapDbFacultyAppointment)
+          );
+        });
+    };
+
+    loadFacultyAppointments();
+
+    const channel = supabase
+      .channel(`faculty-appointments-${facultyId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments', filter: `faculty_id=eq.${facultyId}` },
+        () => loadFacultyAppointments()
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [session, userRole]);
+
+  // Today's upcoming appointments (sorted), used for FacultyHomeScreen's
+  // "Today's Overview" stat and "Today's Schedule" list.
+  const todaysFacultyAppointments = facultyAppointments
+    .filter((a) => a.status === 'upcoming' && a.dateKey === toDateKey(nowTick))
+    .sort((a, b) => (a.startTime24 ?? '').localeCompare(b.startTime24 ?? ''));
+
+  const todaysFacultySchedule: ScheduleItem[] = todaysFacultyAppointments.map((a) => ({
+    id: a.id,
+    time: a.startTimeLabel ?? a.time,
+    studentName: a.studentName,
+    category: a.category,
+    mode: a.mode,
+  }));
+
   // The specific appointment a faculty member tapped "Reschedule" or
   // "Cancel" on from the Directory — this is what the reschedule/cancel
   // screens and their confirm handlers operate on.
@@ -1070,37 +1382,31 @@ function AppContent() {
 
   // --- Queue handlers ---
   // Faculty presses "Done" once a student's consultation wraps up
-  // (including early finishes) — this removes them from the front of the
-  // queue and shifts everyone else's position/estimated wait up.
-  const handleCompleteCurrentQueue = () => {
+  // (including early finishes) — deletes their real queue_entries row.
+  // The renumber_queue_positions DB trigger shifts everyone else up, and
+  // the notify_queue_done trigger tells that student it's complete.
+  const handleCompleteCurrentQueue = async () => {
     if (queue.length === 0) return;
-    const completed = queue[0];
-    setQueue((prev) => prev.slice(1));
-
-    if (completed.id === currentStudentQueueId) {
-      setCurrentStudentQueueId(null);
-      addStudentNotification({
-        icon: 'checkmark-circle-outline',
-        title: 'Appointment Completed',
-        description: `Your consultation with ${facultyProfile.name} is done. Thank you!`,
-      });
-    }
+    const front = queue[0];
+    const { error } = await supabase.from('queue_entries').delete().eq('id', front.id);
+    if (error) showToast('Could not complete this appointment: ' + error.message);
+    // No local state mutation needed — the realtime subscription above
+    // refetches the queue for both sides the moment the row is gone.
   };
 
   // --- Notifications ---
-  // Pushes a new notification onto the student's notification feed. Used
-  // to notify the student whenever a faculty member cancels or proposes a
-  // reschedule for their appointment.
-  // Inserts into the real notifications table — local state is updated by
-  // the realtime subscription below (not here), so a notification only
-  // ever gets appended/sounded once even though many places in the app
-  // call this function.
-  const addStudentNotification = async (
+  // Inserts a real row into the `notifications` table for whichever user
+  // should receive it (the other party in a booking/cancel/reschedule —
+  // not necessarily the person currently signed in). Local state for the
+  // *recipient's own* session is updated by the realtime subscription
+  // below (not here), so a notification only ever gets appended/sounded
+  // once even though many places in the app call this function.
+  const sendNotification = async (
+    userId: string,
     input: Pick<NotificationItem, 'icon' | 'title' | 'description'>
   ) => {
-    if (!session) return;
     const { error } = await supabase.from('notifications').insert({
-      user_id: session.user.id,
+      user_id: userId,
       icon: input.icon,
       title: input.title,
       description: input.description,
@@ -1151,11 +1457,13 @@ function AppContent() {
       prev.map((a) => (a.id === appt.id ? { ...a, status: 'cancelled' } : a))
     );
 
-    addStudentNotification({
-      icon: 'close-circle-outline',
-      title: 'Appointment Cancelled',
-      description: `Your appointment on ${appt.date} at ${appt.time} was cancelled by the faculty. Reason: ${reason}`,
-    });
+    if (appt.studentUserId) {
+      sendNotification(appt.studentUserId, {
+        icon: 'close-circle-outline',
+        title: 'Appointment Cancelled',
+        description: `${facultyProfile.name} cancelled your appointment on ${appt.date} at ${appt.time}. Reason: ${reason}`,
+      });
+    }
 
     setFacultyActionResult({
       type: 'cancelled',
@@ -1174,17 +1482,52 @@ function AppContent() {
   };
 
   // --- Student-initiated cancellation ---
-  const handleStudentCancel = () => {
+  const handleStudentCancel = async () => {
     if (!confirmedBooking) return;
 
     const { dateLabel, bookedTimeRangeLabel: timeLabel, slot, bookingId } = confirmedBooking;
 
     releaseCurrentBooking();
 
+    const { error: apptError } = await supabase
+      .from('appointments')
+      .update({ status: 'canceled' })
+      .eq('id', bookingId);
+    if (apptError) {
+      showToast('Could not cancel appointment: ' + apptError.message);
+    }
+
+    // If they were already in today's walk-in queue for this
+    // appointment, leave it too — a cancelled appointment shouldn't
+    // still be holding a spot in line.
+    if (currentStudentQueueId) {
+      const { error: queueError } = await supabase
+        .from('queue_entries')
+        .delete()
+        .eq('id', currentStudentQueueId);
+      if (queueError) console.log('Failed to leave queue:', queueError.message);
+    }
+
+    const { error: bookingRowError } = await supabase
+      .from('slot_bookings')
+      .delete()
+      .eq('appointment_id', bookingId);
+    if (bookingRowError) {
+      console.log('Failed to release slot capacity:', bookingRowError.message);
+    }
+
+    if (selectedFaculty) {
+      sendNotification(selectedFaculty.id, {
+        icon: 'close-circle-outline',
+        title: 'Appointment Cancelled',
+        description: `${studentProfile.name} cancelled their appointment on ${dateLabel} at ${timeLabel}.`,
+      });
+    }
+
     setStudentBookingResult({
       type: 'cancelled',
-      doctorName: facultyProfile.name,
-      department: facultyProfile.department,
+      doctorName: selectedFaculty?.name ?? '',
+      department: selectedFaculty?.department ?? '',
       dateLabel,
       timeLabel,
       category: 'Academic Advising',
@@ -1198,10 +1541,10 @@ function AppContent() {
   };
 
   // --- Student-initiated reschedule ---
-  const handleStudentReschedule = (selection: BookingSelection) => {
+  const handleStudentReschedule = async (selection: BookingSelection) => {
     if (!confirmedBooking) return;
 
-    const updated = releaseMinutes(
+    const releasedLocally = releaseMinutes(
       scheduleByDate,
       confirmedBooking.date,
       confirmedBooking.slot.id,
@@ -1209,7 +1552,7 @@ function AppContent() {
     );
 
     const { scheduleByDate: afterBooking, startOffset } = bookMinutes(
-      updated,
+      releasedLocally,
       selection.date,
       selection.slot.id,
       selection.durationMinutes,
@@ -1217,20 +1560,67 @@ function AppContent() {
     );
     if (startOffset === null) return;
 
-    setScheduleByDate(afterBooking);
-
     const bookedSlot = (afterBooking[selection.date] ?? []).find(
       (s) => s.id === selection.slot.id
     );
-    const newBooking = bookedSlot?.bookings[bookedSlot.bookings.length - 1];
     const bookedTimeRangeLabel = bookedSlot
       ? getBookedTimeRangeLabel(bookedSlot, startOffset, selection.durationMinutes)
       : selection.slot.time;
 
+    // Move the SAME appointment row to the new slot/time (rather than
+    // cancel + create new) so its id — and anything already referencing
+    // it — stays stable.
+    const dayInfo = WEEK_DAYS.find((d) => d.date === selection.date);
+    const realDateKey = dayInfo?.dateKey ?? toDateKey(new Date());
+    const [startLabelPart, endLabelPart] = bookedTimeRangeLabel.split(' - ');
+
+    const { error: apptError } = await supabase
+      .from('appointments')
+      .update({
+        slot_id: selection.slot.id,
+        date: realDateKey,
+        start_time: labelTo24h(startLabelPart),
+        end_time: labelTo24h(endLabelPart),
+        duration_minutes: selection.durationMinutes,
+        mode: selection.slot.mode,
+        location: selection.slot.location,
+      })
+      .eq('id', confirmedBooking.bookingId);
+
+    if (apptError) {
+      showToast('Could not reschedule: ' + apptError.message);
+      return;
+    }
+
+    // Free the old slot's reserved minutes and reserve the new ones.
+    await supabase
+      .from('slot_bookings')
+      .delete()
+      .eq('appointment_id', confirmedBooking.bookingId);
+    const { error: bookingRowError } = await supabase.from('slot_bookings').insert({
+      slot_id: selection.slot.id,
+      appointment_id: confirmedBooking.bookingId,
+      start_minute: startOffset,
+      duration_minutes: selection.durationMinutes,
+    });
+    if (bookingRowError) {
+      showToast('Rescheduled, but capacity tracking failed to save.');
+    }
+
+    if (selectedFaculty) {
+      sendNotification(selectedFaculty.id, {
+        icon: 'calendar-outline',
+        title: 'Appointment Rescheduled',
+        description: `${studentProfile.name} moved their appointment to ${selection.dateLabel} at ${bookedTimeRangeLabel}.`,
+      });
+    }
+
+    setScheduleByDate(afterBooking);
+
     const newConfirmedBooking: BookingSelection = {
       ...selection,
       slot: bookedSlot ?? selection.slot,
-      bookingId: newBooking?.bookingId ?? '',
+      bookingId: confirmedBooking.bookingId,
       bookedTimeRangeLabel,
     };
 
@@ -1238,8 +1628,8 @@ function AppContent() {
 
     setStudentBookingResult({
       type: 'rescheduled',
-      doctorName: facultyProfile.name,
-      department: facultyProfile.department,
+      doctorName: selectedFaculty?.name ?? '',
+      department: selectedFaculty?.department ?? '',
       dateLabel: newConfirmedBooking.dateLabel,
       timeLabel: bookedTimeRangeLabel,
       category: 'Academic Advising',
@@ -1295,13 +1685,15 @@ function AppContent() {
       )
     );
 
-    addStudentNotification({
-      icon: 'calendar-outline',
-      title: 'Appointment Rescheduled',
-      description: isOnline
-        ? `Your appointment with ${facultyProfile.name} was rescheduled to ${data.dateLabel} at ${bookedTimeRangeLabel}. Reason: ${data.reason}. New meeting link: ${data.meetingLink}`
-        : `Your appointment with ${facultyProfile.name} was rescheduled to ${data.dateLabel} at ${bookedTimeRangeLabel}. Reason: ${data.reason}.`,
-    });
+    if (appt.studentUserId) {
+      sendNotification(appt.studentUserId, {
+        icon: 'calendar-outline',
+        title: 'Appointment Rescheduled',
+        description: isOnline
+          ? `Your appointment with ${facultyProfile.name} was rescheduled to ${data.dateLabel} at ${bookedTimeRangeLabel}. Reason: ${data.reason}. New meeting link: ${data.meetingLink}`
+          : `Your appointment with ${facultyProfile.name} was rescheduled to ${data.dateLabel} at ${bookedTimeRangeLabel}. Reason: ${data.reason}.`,
+      });
+    }
 
     setFacultyActionResult({
       type: 'rescheduled',
@@ -1504,6 +1896,7 @@ function AppContent() {
 
         {screen === 'home' && (
           <HomeScreen
+            userName={studentProfile.name}
             hasPendingReschedule={!!pendingReschedule}
             cancelledNotice={cancelledNotice}
             onDismissCancelledNotice={() => setCancelledNotice(null)}
@@ -1513,6 +1906,9 @@ function AppContent() {
             onViewAppointments={() => setScreen('appointments')}
             onViewNotifications={() => setScreen('notifications')}
             onViewQueue={() => setScreen('queue')}
+            nextAppointment={nextStudentAppointment}
+            notifications={studentNotifications}
+            unreadCount={unreadNotificationCount}
             queue={queue}
             currentQueueId={currentStudentQueueId}
             now={nowTick}
@@ -1626,6 +2022,12 @@ function AppContent() {
                 showToast('Booked, but capacity tracking failed to save.');
               }
 
+              sendNotification(selectedFaculty.id, {
+                icon: 'calendar-outline',
+                title: 'New Appointment',
+                description: `${studentProfile.name} booked an appointment on ${dayInfo?.fullLabel ?? realDateKey} at ${bookedTimeRangeLabel}.`,
+              });
+
               setScheduleByDate(updated);
               setConfirmedBooking({
                 ...selection,
@@ -1708,6 +2110,7 @@ function AppContent() {
 
         {screen === 'appointments' && (
           <AppointmentsScreen
+            appointments={studentAppointments}
             onMenuPress={() => openSideMenu('student')}
             onSelectAppointment={(appointment) => {
               console.log('Selected appointment:', appointment);
@@ -1737,14 +2140,23 @@ function AppContent() {
             onAbout={() => goToAbout('profile')}
             onLogout={() => setScreen('login')}
             onTabChange={handleTabChange}
+            onChangePhoto={() => handleChangeAvatar('student')}
           />
         )}
 
         {screen === 'facultyHome' && (
           <FacultyHomeScreen
+            facultyFirstName={facultyProfile.name.split(' ')[0] || undefined}
+            appointmentsCount={todaysFacultyAppointments.length}
+            // No feature tracks student-initiated reschedule requests yet
+            // (only faculty-initiated ones exist), so this is honestly 0
+            // rather than a fake placeholder.
+            pendingReschedulesCount={0}
+            schedule={todaysFacultySchedule}
             walkInQueueCount={queue.length}
             onMenuPress={() => openSideMenu('faculty')}
             onNotificationsPress={() => setScreen('facultyNotifications')}
+            unreadCount={unreadNotificationCount}
             onViewSchedule={() => setScreen('facultyDirectory')}
             onOpenAppointments={() => setScreen('facultyDirectory')}
             onOpenPendingReschedules={() => setScreen('facultyDirectory')}
@@ -1788,7 +2200,6 @@ function AppContent() {
             appointmentMode={selectedStudent.mode}
             appointmentRoom={selectedStudent.room}
             onBack={() => setScreen('facultyDirectory')}
-            onMessagePress={() => showToast('Messaging is not available yet')}
             onTabChange={handleFacultyTabChange}
           />
         )}
@@ -1829,8 +2240,11 @@ function AppContent() {
 
         {screen === 'facultyNotifications' && (
           <FacultyNotificationsScreen
+            notifications={studentNotifications}
+            onDeleteNotifications={handleDeleteStudentNotifications}
+            onMarkAllRead={handleMarkAllStudentNotificationsRead}
+            onMarkAsRead={handleMarkStudentNotificationRead}
             onBack={() => setScreen('facultyHome')}
-            onMarkAllRead={() => console.log('Mark all as read')}
             onSelectNotification={(item) => console.log('Selected notification:', item)}
             onTabChange={handleFacultyTabChange}
           />
@@ -1845,6 +2259,7 @@ function AppContent() {
             onAbout={() => goToAbout('facultyProfileMenu')}
             onLogout={() => setScreen('login')}
             onTabChange={handleFacultyTabChange}
+            onChangePhoto={() => handleChangeAvatar('faculty')}
           />
         )}
 
@@ -1988,14 +2403,12 @@ function AppContent() {
         role={userRole}
         userName={userRole === 'faculty' ? facultyProfile.name : studentProfile.name}
         activeKey={sideMenuActiveKey}
-        // Real unread count for the student; faculty notifications are
-        // still owned locally by FacultyNotificationsScreen, so this stays
-        // a static fallback for that role.
-        notificationCount={
-          userRole === 'student'
-            ? studentNotifications.filter((n) => !n.read).length
-            : 3
-        }
+        // Real unread count — the same notifications state now backs
+        // both the student and faculty Notifications screens.
+        notificationCount={unreadNotificationCount}
+        // Same photo shown on the Profile screen — updates immediately
+        // after handleChangeAvatar saves a new one to Supabase.
+        photoUri={userRole === 'faculty' ? facultyProfile.photoUri : studentProfile.photoUri}
         onClose={() => setSideMenuOpen(false)}
         onNavigate={handleSideMenuNavigate}
         onLogout={handleSideMenuLogout}

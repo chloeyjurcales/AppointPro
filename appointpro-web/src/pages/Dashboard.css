@@ -460,6 +460,14 @@
   flex-direction: column;
 }
 
+.db-schedule-empty {
+  margin: 0;
+  padding: 20px 10px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--text-secondary, #6b7280);
+}
+
 .db-schedule-item {
   display: grid;
   grid-template-columns: minmax(140px, 160px) 1fr minmax(120px, 160px) auto;
