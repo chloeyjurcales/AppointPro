@@ -28,6 +28,7 @@ export type Appointment = {
   // re-parsing the label.
   dateKey?: string; // 'YYYY-MM-DD'
   startTime24?: string; // 'HH:MM:SS'
+  referenceNo?: string;
 };
 
 export const DEFAULT_APPOINTMENTS: Appointment[] = [
@@ -80,6 +81,7 @@ export type DbStudentAppointment = {
   mode: 'Face-to-Face' | 'Online';
   location: string;
   status: 'upcoming' | 'completed' | 'canceled';
+  reference_no: string;
   faculty: {
     department: string | null;
     profiles: { full_name: string } | { full_name: string }[] | null;
@@ -114,11 +116,17 @@ export function mapDbStudentAppointment(row: DbStudentAppointment): Appointment 
     doctorName: facultyProfile?.full_name ?? 'Unknown Faculty',
     date: `${formatStudentApptDate(row.date)} · ${formatStudentApptTime12h(row.start_time)}`,
     category: row.category ?? 'Consultation',
-    location: row.mode === 'Online' ? 'Online' : row.location,
+    // Keep the real value here even for Online appointments — for
+    // Online mode this is the faculty member's meeting link, and the
+    // Details screen needs it intact to render a working, tappable
+    // link. The list card below shows a short "Online" label instead
+    // of the raw link so the row stays tidy.
+    location: row.location,
     mode: row.mode,
     department: row.faculty?.department ?? undefined,
     dateKey: row.date,
     startTime24: row.start_time,
+    referenceNo: row.reference_no,
   };
 }
 
@@ -226,8 +234,8 @@ export default function AppointmentsScreen({
                   <Text style={styles.doctorName}>{item.doctorName}</Text>
                   <Text style={styles.detailText}>{item.date}</Text>
                   <Text style={styles.detailText}>{item.category}</Text>
-                  <Text style={styles.detailText}>
-                    {item.location} · {item.mode}
+                  <Text style={styles.detailText} numberOfLines={1}>
+                    {item.mode === 'Online' ? 'Online' : item.location} · {item.mode}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

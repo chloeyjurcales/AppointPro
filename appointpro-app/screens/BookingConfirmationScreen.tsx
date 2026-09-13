@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -43,6 +44,14 @@ export default function BookingConfirmationScreen({
   mode = 'Face-to-Face',
   referenceNo = 'APP-2026-000791',
 }: BookingConfirmationScreenProps) {
+  const isOnline = mode.trim().toLowerCase() === 'online';
+
+  const handleOpenMeetingLink = () => {
+    if (!location) return;
+    const url = /^https?:\/\//i.test(location) ? location : `https://${location}`;
+    Linking.openURL(url).catch(() => {});
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -96,8 +105,25 @@ export default function BookingConfirmationScreen({
             <Text style={styles.detailText}>{consultationCategory}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="location-outline" size={16} color={colors.primary} style={styles.detailIcon} />
-            <Text style={styles.detailText}>{location}</Text>
+            <Ionicons
+              name={isOnline ? 'link-outline' : 'location-outline'}
+              size={16}
+              color={colors.primary}
+              style={styles.detailIcon}
+            />
+            {isOnline ? (
+              <TouchableOpacity
+                style={styles.linkTouchable}
+                onPress={handleOpenMeetingLink}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.linkText} numberOfLines={1}>
+                  {location}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.detailText}>{location}</Text>
+            )}
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="people-outline" size={16} color={colors.primary} style={styles.detailIcon} />
@@ -237,6 +263,14 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 12,
     color: colors.textDark,
+  },
+  linkTouchable: {
+    flex: 1,
+  },
+  linkText: {
+    fontSize: 12,
+    color: colors.link,
+    textDecorationLine: 'underline',
   },
   purposeBlock: {},
   purposeLabel: {

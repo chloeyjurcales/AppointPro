@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -55,6 +55,14 @@ export default function FacultyProfileMenuScreen({
   onTabChange,
   onChangePhoto,
 }: FacultyProfileMenuScreenProps) {
+  // Falls back to the placeholder if the photo URL fails to load (e.g.
+  // the Supabase Storage bucket isn't public, or the object is missing)
+  // instead of silently showing a blank circle.
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => {
+    setImageFailed(false);
+  }, [photoUri]);
+
   const menuItems: MenuItem[] = [
     { key: 'personal', icon: 'person-outline', label: 'Personal Information', onPress: onPersonalInformation },
     { key: 'schedule', icon: 'calendar-outline', label: 'My Schedule', onPress: onMySchedule },
@@ -75,8 +83,19 @@ export default function FacultyProfileMenuScreen({
             activeOpacity={onChangePhoto ? 0.75 : 1}
             disabled={!onChangePhoto}
           >
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+            {photoUri && !imageFailed ? (
+              <Image
+                source={{ uri: photoUri }}
+                style={styles.avatarImage}
+                onError={(e) => {
+                  console.warn(
+                    '[FacultyProfileMenuScreen] avatar failed to load:',
+                    photoUri,
+                    e.nativeEvent.error
+                  );
+                  setImageFailed(true);
+                }}
+              />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Feather name="user" size={40} color={colors.white} />

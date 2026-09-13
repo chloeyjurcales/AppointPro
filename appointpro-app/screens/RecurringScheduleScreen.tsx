@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,31 @@ type RecurringScheduleScreenProps = {
   onConfirm?: (rule: RecurringRule) => void;
 };
 
+// Converts 12h hour/minute/period fields into minutes-since-midnight, or
+// null if any field isn't a valid time component. Used to validate the
+// range before it's ever sent to Supabase.
+function toMinutesSinceMidnight(
+  hourStr: string,
+  minuteStr: string,
+  period: Period
+): number | null {
+  const hourNum = parseInt(hourStr, 10);
+  const minuteNum = parseInt(minuteStr, 10);
+  if (
+    !Number.isInteger(hourNum) ||
+    !Number.isInteger(minuteNum) ||
+    hourNum < 1 ||
+    hourNum > 12 ||
+    minuteNum < 0 ||
+    minuteNum > 59
+  ) {
+    return null;
+  }
+  let hour24 = hourNum % 12;
+  if (period === 'PM') hour24 += 12;
+  return hour24 * 60 + minuteNum;
+}
+
 export default function RecurringScheduleScreen({
   onBack,
   onConfirm,
@@ -34,7 +59,28 @@ export default function RecurringScheduleScreen({
   const [weeks, setWeeks] = useState('16');
 
   const isOnline = mode === 'Online';
-  const canConfirm = selectedDays.length > 0 && location.trim().length > 0 && parseInt(weeks, 10) > 0;
+
+  const startMinutes = useMemo(
+    () => toMinutesSinceMidnight(startHour, startMinute, startPeriod),
+    [startHour, startMinute, startPeriod]
+  );
+  const endMinutes = useMemo(
+    () => toMinutesSinceMidnight(endHour, endMinute, endPeriod),
+    [endHour, endMinute, endPeriod]
+  );
+
+  const timeError =
+    startMinutes === null || endMinutes === null
+      ? 'Enter a valid hour (1-12) and minute (0-59) for both times.'
+      : endMinutes <= startMinutes
+      ? 'End time must be after the start time.'
+      : null;
+
+  const canConfirm =
+    selectedDays.length > 0 &&
+    location.trim().length > 0 &&
+    parseInt(weeks, 10) > 0 &&
+    !timeError;
 
   const toggleDay = (dayIndex: number) => {
     setSelectedDays((prev) =>
@@ -183,6 +229,8 @@ export default function RecurringScheduleScreen({
             ))}
           </View>
         </View>
+
+        {timeError && <Text style={styles.errorText}>{timeError}</Text>}
 
         <Text style={styles.sectionLabel}>Consultation Type</Text>
         <View style={styles.typeRow}>
@@ -349,6 +397,13 @@ const styles = StyleSheet.create({
   },
   locationIcon: { marginRight: 8 },
   locationInput: { flex: 1, fontSize: 13, color: colors.textDark },
+  errorText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.danger,
+    marginTop: -4,
+    marginBottom: spacing.sm,
+  },
   weeksInput: {
     width: 60,
     height: 40,

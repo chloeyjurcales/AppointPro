@@ -10,6 +10,7 @@ import {
   AVERAGE_WAIT_MINUTES_PER_STUDENT,
   getRemainingSeconds,
   getEstimatedWaitSeconds,
+  getScheduledTimeRangeLabel,
   formatCountdown,
 } from '../data/queue';
 
@@ -54,6 +55,9 @@ export default function QueueScreen({
   const isFaculty = role === 'faculty';
   const position = currentQueueId
     ? queue.findIndex((q) => q.id === currentQueueId) + 1
+    : null;
+  const currentEntry = currentQueueId
+    ? queue.find((q) => q.id === currentQueueId) ?? null
     : null;
   const isNowServing = position === 1;
   // Seconds remaining in your own session (if you're #1) or seconds until
@@ -120,6 +124,11 @@ export default function QueueScreen({
             {nowServing ? (
               <>
                 <Text style={styles.nowServingName}>{nowServing.studentName}</Text>
+                {!!getScheduledTimeRangeLabel(nowServing) && (
+                  <Text style={styles.nowServingSchedule}>
+                    Scheduled {getScheduledTimeRangeLabel(nowServing)}
+                  </Text>
+                )}
                 <Text style={styles.nowServingCountdown}>
                   {formatCountdown(nowServingCountdownSeconds)} remaining
                 </Text>
@@ -142,6 +151,11 @@ export default function QueueScreen({
               <View style={styles.yourQueueCard}>
                 <Text style={styles.yourQueueLabel}>Your Queue Number</Text>
                 <Text style={styles.yourQueueNumber}>#{position}</Text>
+                {!!currentEntry && !!getScheduledTimeRangeLabel(currentEntry) && (
+                  <Text style={styles.yourQueueSchedule}>
+                    Scheduled {getScheduledTimeRangeLabel(currentEntry)}
+                  </Text>
+                )}
                 <Text style={styles.yourQueueWait}>
                   {isNowServing
                     ? `Your appointment is now — ${formatCountdown(myCountdownSeconds ?? 0)} remaining`
@@ -188,6 +202,7 @@ export default function QueueScreen({
               const rowSeconds = isEntryNowServing
                 ? getRemainingSeconds(entry, now)
                 : getEstimatedWaitSeconds(queue, index, now);
+              const scheduleLabel = getScheduledTimeRangeLabel(entry);
               return (
                 <View
                   key={entry.id}
@@ -198,10 +213,15 @@ export default function QueueScreen({
                   ]}
                 >
                   <Text style={styles.queuePosition}>#{index + 1}</Text>
-                  <Text style={styles.queueName}>
-                    {isYou ? 'You' : entry.studentName}
-                    {isFaculty && isEntryNowServing ? '  ·  Now Serving' : ''}
-                  </Text>
+                  <View style={styles.queueNameWrap}>
+                    <Text style={styles.queueName}>
+                      {isYou ? 'You' : entry.studentName}
+                      {isFaculty && isEntryNowServing ? '  ·  Now Serving' : ''}
+                    </Text>
+                    {!!scheduleLabel && (
+                      <Text style={styles.queueRowSchedule}>{scheduleLabel}</Text>
+                    )}
+                  </View>
                   <Text style={styles.queueRowTime}>{formatCountdown(rowSeconds)}</Text>
                 </View>
               );
@@ -335,6 +355,11 @@ const styles = StyleSheet.create({
     color: colors.white,
     marginBottom: 4,
   },
+  yourQueueSchedule: {
+    fontSize: 12,
+    color: '#E9C7CE',
+    marginBottom: 4,
+  },
   yourQueueWait: {
     fontSize: 12,
     color: colors.white,
@@ -359,6 +384,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
     textAlign: 'center',
+  },
+  nowServingSchedule: {
+    fontSize: 12,
+    color: '#E9C7CE',
+    marginTop: 2,
   },
   nowServingCountdown: {
     fontSize: 13,
@@ -475,6 +505,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textDark,
     fontWeight: '600',
+  },
+  queueNameWrap: {
+    flex: 1,
+  },
+  queueRowSchedule: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   queueRowTime: {
     fontSize: 12,

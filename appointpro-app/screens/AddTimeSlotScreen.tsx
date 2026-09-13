@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -34,16 +34,44 @@ type AddTimeSlotScreenProps = {
   onTabChange?: (tab: FacultyTabKey) => void;
 };
 
+// Converts 12h hour/minute/period fields into minutes-since-midnight, or
+// null if any field isn't a valid time component. Used to validate the
+// range before it's ever sent to Supabase.
+function toMinutesSinceMidnight(
+  hourStr: string,
+  minuteStr: string,
+  period: Period
+): number | null {
+  const hourNum = parseInt(hourStr, 10);
+  const minuteNum = parseInt(minuteStr, 10);
+  if (
+    !Number.isInteger(hourNum) ||
+    !Number.isInteger(minuteNum) ||
+    hourNum < 1 ||
+    hourNum > 12 ||
+    minuteNum < 0 ||
+    minuteNum > 59
+  ) {
+    return null;
+  }
+  let hour24 = hourNum % 12;
+  if (period === 'PM') hour24 += 12;
+  return hour24 * 60 + minuteNum;
+}
+
 export default function AddTimeSlotScreen({
   onBack,
   onConfirm,
   onTabChange,
 }: AddTimeSlotScreenProps) {
+  // Defaults to a valid 10:00 AM - 12:00 PM range (previously defaulted
+  // to 10:00 PM - 12:30 PM, which is an end-before-start range and would
+  // have produced a negative total_minutes if confirmed untouched).
   const [startHour, setStartHour] = useState('10');
   const [startMinute, setStartMinute] = useState('00');
-  const [startPeriod, setStartPeriod] = useState<Period>('PM');
+  const [startPeriod, setStartPeriod] = useState<Period>('AM');
   const [endHour, setEndHour] = useState('12');
-  const [endMinute, setEndMinute] = useState('30');
+  const [endMinute, setEndMinute] = useState('00');
   const [endPeriod, setEndPeriod] = useState<Period>('PM');
   const [mode, setMode] = useState<ConsultationMode>('Face-to-Face');
   const [location, setLocation] = useState('');
@@ -51,7 +79,32 @@ export default function AddTimeSlotScreen({
 
   const isOnline = mode === 'Online';
 
+  const startMinutes = useMemo(
+    () => toMinutesSinceMidnight(startHour, startMinute, startPeriod),
+    [startHour, startMinute, startPeriod]
+  );
+  const endMinutes = useMemo(
+    () => toMinutesSinceMidnight(endHour, endMinute, endPeriod),
+    [endHour, endMinute, endPeriod]
+  );
+
+  const timeError =
+    startMinutes === null || endMinutes === null
+      ? 'Enter a valid hour (1-12) and minute (0-59) for both times.'
+      : endMinutes <= startMinutes
+      ? 'End time must be after the start time.'
+      : null;
+
+  const locationError = location.trim().length === 0
+    ? isOnline
+      ? 'Enter a meeting link or platform.'
+      : 'Enter a room or location.'
+    : null;
+
+  const canConfirm = !timeError && !locationError;
+
   const handleConfirm = () => {
+    if (!canConfirm) return;
     onConfirm?.({
       startHour,
       startMinute,
@@ -60,7 +113,7 @@ export default function AddTimeSlotScreen({
       endMinute,
       endPeriod,
       mode,
-      location,
+      location: location.trim(),
       recurring,
     });
   };
@@ -173,6 +226,8 @@ export default function AddTimeSlotScreen({
             </View>
           </View>
 
+          {timeError && <Text style={styles.errorText}>{timeError}</Text>}
+
           <View style={styles.typeRow}>
             {(
               [
@@ -221,6 +276,7 @@ export default function AddTimeSlotScreen({
                 autoCapitalize="none"
               />
             </View>
+            {locationError && <Text style={styles.errorText}>{locationError}</Text>}
           </View>
 
           <View style={styles.recurringRow}>
@@ -239,7 +295,12 @@ export default function AddTimeSlotScreen({
           </View>
         </View>
 
-        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.confirmButton, !canConfirm && styles.confirmButtonDisabled]}
+          onPress={handleConfirm}
+          activeOpacity={0.85}
+          disabled={!canConfirm}
+        >
           <Text style={styles.confirmButtonText}>Confirm and Add Time Slot</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -384,6 +445,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textDark,
   },
+  errorText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.danger,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
   recurringRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -407,6 +475,9 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  confirmButtonDisabled: {
+    opacity: 0.4,
   },
   confirmButtonText: {
     color: colors.white,

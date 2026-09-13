@@ -20,9 +20,15 @@ import {
   isSlotFull,
   getFittingDurationOptions,
 } from '../data/facultySchedule';
+import { toDateKey } from '../data/facultySlots';
 
 export type BookingSelection = {
   date: number;
+  // Real 'YYYY-MM-DD' key for the selected day. Needed (in addition to
+  // the display-only `date` day-of-month number) so downstream code can
+  // tell whether a confirmed booking's start time is happening *today*
+  // versus just matching today's clock time on some other day.
+  dateKey: string;
   dateLabel: string;
   slot: ScheduleSlot;
   duration: string;
@@ -55,9 +61,15 @@ export default function BookAppointmentScreen({
   initialDate,
   initialSlotId,
 }: BookAppointmentScreenProps) {
+  const todayKeyForDefault = toDateKey(new Date());
   const defaultDate =
     initialDate ??
-    WEEK_DAYS.find((d) => (scheduleByDate[d.date] ?? []).some((s) => !isSlotFull(s)))?.date ??
+    WEEK_DAYS.find(
+      (d) =>
+        d.dateKey >= todayKeyForDefault &&
+        (scheduleByDate[d.date] ?? []).some((s) => !isSlotFull(s))
+    )?.date ??
+    WEEK_DAYS.find((d) => d.dateKey === todayKeyForDefault)?.date ??
     WEEK_DAYS[0].date;
 
   const [selectedDate, setSelectedDate] = useState(defaultDate);
@@ -66,7 +78,17 @@ export default function BookAppointmentScreen({
   const [purpose, setPurpose] = useState('');
 
   const isReschedule = mode === 'reschedule';
-  const allSlotsForDate = scheduleByDate[selectedDate] ?? [];
+  // Belt-and-suspenders: even though the faculty schedule fed in here is
+  // already filtered server-side to drop past days/slots, never allow a
+  // day before today to be picked in this screen either — stale or
+  // cached `scheduleByDate` data should never let someone book the past.
+  const todayKey = toDateKey(new Date());
+  const isPastDay = (dateKey: string) => dateKey < todayKey;
+  const allSlotsForDate = isPastDay(
+    WEEK_DAYS.find((d) => d.date === selectedDate)?.dateKey ?? todayKey
+  )
+    ? []
+    : scheduleByDate[selectedDate] ?? [];
   // Fully booked slots are removed from the list entirely — once every
   // minute of a slot (e.g. a 2-hour 3-5 window) is claimed by other
   // students' bookings, it should no longer appear as a choice here.
@@ -103,6 +125,7 @@ export default function BookAppointmentScreen({
       DURATION_OPTIONS.find((d) => d.minutes === selectedDurationMinutes)?.label ?? '';
     onContinue?.({
       date: selectedDate,
+      dateKey: selectedDay.dateKey,
       dateLabel: selectedDay.fullLabel,
       slot: selectedSlot,
       duration: durationLabel,
@@ -143,7 +166,9 @@ export default function BookAppointmentScreen({
           <View style={styles.dateRow}>
             {WEEK_DAYS.map((d) => {
               const isActive = d.date === selectedDate;
-              const hasAvailable = (scheduleByDate[d.date] ?? []).some((s) => !isSlotFull(s));
+              const hasAvailable =
+                !isPastDay(d.dateKey) &&
+                (scheduleByDate[d.date] ?? []).some((s) => !isSlotFull(s));
               return (
                 <TouchableOpacity
                   key={d.date}

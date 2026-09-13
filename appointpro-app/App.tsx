@@ -1,7 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useAudioPlayer } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
+// SDK 54+ moved readAsStringAsync/getInfoAsync to the "legacy" entrypoint;
+// the new default export uses a different File/Directory class API.
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
+import * as Font from 'expo-font';
+import { Ionicons, Feather, FontAwesome, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { colors, spacing } from './theme';
@@ -77,6 +91,7 @@ import {
   QueueEntry,
   DbQueueEntry,
   mapDbQueueEntry,
+  sortQueueByScheduledTime,
   AVERAGE_WAIT_MINUTES_PER_STUDENT,
 } from './data/queue';
 import {
@@ -186,8 +201,21 @@ function toReferenceNo(bookingId: string): string {
 // "9:00 AM - 9:30 AM" and reports whether that moment has arrived yet.
 // Used to only surface the Home screen's Queue card once a student's
 // appointment window has actually begun.
-function hasTimeArrived(bookedTimeRangeLabel: string | undefined, now: Date): boolean {
-  if (!bookedTimeRangeLabel) return false;
+//
+// Bug fix: this used to compare ONLY the clock time, ignoring the
+// appointment's actual date. That meant a booking made for a future day
+// would flip to "started" the instant today's clock reached the same
+// time-of-day, auto-joining the student into today's queue for an
+// appointment that isn't happening yet. It now also requires the
+// appointment's date to be today.
+function hasTimeArrived(
+  dateKey: string | undefined,
+  bookedTimeRangeLabel: string | undefined,
+  now: Date
+): boolean {
+  if (!dateKey || !bookedTimeRangeLabel) return false;
+  if (dateKey !== toDateKey(now)) return false;
+
   const startPart = bookedTimeRangeLabel.split('-')[0]?.trim();
   const match = startPart?.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (!match) return false;
@@ -306,9 +334,67 @@ function labelTo24h(label: string): string {
   return `${h.toString().padStart(2, '0')}:${match[2]}:00`;
 }
 
+// Returns true if two "HH:MM:SS" 24h time ranges on the same day overlap.
+// These are zero-padded 24h strings, so plain string comparison already
+// matches chronological order — no need to parse them into minutes.
+function timeRangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+// A student should never end up double-booked — two appointments, with
+// the same faculty or different ones, that overlap in time on the same
+// day. This re-queries that student's own live "upcoming" appointments
+// (rather than trusting local state, which can be stale) and checks the
+// proposed new window against every one of them. `excludeAppointmentId`
+// lets a reschedule check against everything EXCEPT the appointment
+// that's actually being moved.
+async function findStudentScheduleConflict(
+  studentId: string,
+  dateKey: string,
+  startTime24: string,
+  endTime24: string,
+  excludeAppointmentId?: string
+): Promise<{ conflict: boolean; checkFailed: boolean }> {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, start_time, end_time')
+    .eq('student_id', studentId)
+    .eq('date', dateKey)
+    .eq('status', 'upcoming');
+
+  if (error) {
+    console.log('Failed to check schedule conflicts:', error.message);
+    return { conflict: false, checkFailed: true };
+  }
+
+  const rows = (data ?? []) as { id: string; start_time: string; end_time: string }[];
+  const conflict = rows.some(
+    (row) =>
+      row.id !== excludeAppointmentId &&
+      timeRangesOverlap(row.start_time, row.end_time, startTime24, endTime24)
+  );
+  return { conflict, checkFailed: false };
+}
+
+// Parses a "HH:MM" or "HH:MM:SS" 24h time string into minutes-since-midnight.
+function timeStringToMinutes(time: string): number {
+  const [h, m] = time.split(':').map((n) => parseInt(n, 10));
+  return (h || 0) * 60 + (m || 0);
+}
+
 // Fetches a specific faculty's real availability for the current real
 // week (WEEK_DAYS), plus everyone's existing slot_bookings so remaining
 // capacity is accurate — not just "the one demo faculty's" fake calendar.
+//
+// Bug fix: this used to hand back EVERY row in the current week verbatim,
+// which meant a student could "book" a slot on a day that had already
+// passed (e.g. browsing on Wednesday still showed Monday's slots), or
+// book an already-elapsed time window earlier today. We now (1) drop any
+// day before today entirely, (2) drop today's slots whose whole window
+// has already finished, and (3) for a slot today that's already under
+// way, block off the elapsed portion (its start up to right now) as if
+// it were booked, so the remaining-capacity math and "next available
+// start time" logic never hand out a time that's already in the past.
 async function fetchFacultyWeekSchedule(
   facultyId: string
 ): Promise<Record<number, ScheduleSlot[]>> {
@@ -331,10 +417,24 @@ async function fetchFacultyWeekSchedule(
     .select('*')
     .in('slot_id', slotIds);
 
+  const now = new Date();
+  const todayKey = toDateKey(now);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
   const byDayNum: Record<number, ScheduleSlot[]> = {};
   rows.forEach((row) => {
+    // Whole day is in the past — never offer it.
+    if (row.date < todayKey) return;
+
     const dayNum = dateKeyToDayNum.get(row.date);
     if (dayNum === undefined) return;
+
+    const isToday = row.date === todayKey;
+    const startMinutes = timeStringToMinutes(row.start_time);
+    const endMinutes = timeStringToMinutes(row.end_time);
+
+    // Today's slot has already fully ended — never offer it.
+    if (isToday && endMinutes <= nowMinutes) return;
 
     const start = formatTime12h(row.start_time);
     const end = formatTime12h(row.end_time);
@@ -348,6 +448,18 @@ async function fetchFacultyWeekSchedule(
         // shouldn't be exposed to whoever's browsing this slot.
         studentName: 'Booked',
       }));
+
+    // Today's slot has already started — treat the elapsed portion as
+    // "booked" so no one can be assigned a start time that's already
+    // passed, without hiding the still-open remainder of the slot.
+    if (isToday && startMinutes < nowMinutes) {
+      bookings.push({
+        bookingId: `elapsed-${row.id}`,
+        startMinuteOffset: 0,
+        durationMinutes: Math.min(nowMinutes - startMinutes, row.total_minutes),
+        studentName: 'Elapsed',
+      });
+    }
 
     const slot: ScheduleSlot = {
       id: row.id,
@@ -489,12 +601,43 @@ function AppContent() {
   // --- Profile photo upload (Supabase Storage 'avatars' bucket) ---
   // Uploads the picked local file to a per-user path in the 'avatars'
   // bucket and returns a cache-busted public URL, or null on failure.
-  const uploadAvatar = async (localUri: string, userId: string): Promise<string | null> => {
+  //
+  // NOTE: we intentionally do NOT use `fetch(localUri).arrayBuffer()`
+  // here. On-device that call frequently returns an empty or truncated
+  // buffer for local file:// / content:// URIs (a long-standing RN/Expo
+  // gotcha), which uploads "successfully" (no error thrown) but produces
+  // a 0-byte or corrupt image in storage — exactly the "upload works but
+  // I can't see the picture" symptom. Reading the file as base64 via
+  // expo-file-system and decoding it ourselves is the reliable path.
+  const uploadAvatar = async (
+    localUri: string,
+    userId: string,
+    mimeType?: string
+  ): Promise<string | null> => {
     try {
-      const response = await fetch(localUri);
-      const arrayBuffer = await response.arrayBuffer();
-      const fileExt = (localUri.split('.').pop() || 'jpg').toLowerCase();
-      const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
+      const fileInfo = await FileSystem.getInfoAsync(localUri);
+      if (!fileInfo.exists || (fileInfo.size ?? 0) === 0) {
+        console.warn('[uploadAvatar] picked file is missing or empty:', localUri, fileInfo);
+        showToast('That photo could not be read. Please try picking it again.');
+        return null;
+      }
+
+      const base64 = await FileSystem.readAsStringAsync(localUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const arrayBuffer = decodeBase64(base64);
+
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+        console.warn('[uploadAvatar] decoded buffer is empty for:', localUri);
+        showToast('Could not process that photo. Please try a different one.');
+        return null;
+      }
+
+      const extFromUri = localUri.split('.').pop()?.toLowerCase();
+      const fileExt =
+        extFromUri && /^[a-z0-9]{2,4}$/.test(extFromUri) ? extFromUri : 'jpg';
+      const contentType =
+        mimeType || (fileExt === 'png' ? 'image/png' : 'image/jpeg');
       // Same path every time (per user) so re-uploading overwrites the
       // old photo instead of littering the bucket with orphaned files.
       const filePath = `${userId}/avatar.${fileExt}`;
@@ -504,7 +647,11 @@ function AppContent() {
         .upload(filePath, arrayBuffer, { contentType, upsert: true });
 
       if (uploadError) {
-        showToast(uploadError.message);
+        console.warn('[uploadAvatar] storage upload failed:', uploadError);
+        // "Bucket not found" / RLS "new row violates row-level security
+        // policy" are the two most common causes and both point at the
+        // Supabase Storage setup rather than the app code.
+        showToast(uploadError.message || 'Could not upload photo. Please try again.');
         return null;
       }
 
@@ -512,7 +659,8 @@ function AppContent() {
       // Cache-bust: the path is stable, so without this the <Image>
       // component (and other devices) would keep showing the old photo.
       return `${data.publicUrl}?t=${Date.now()}`;
-    } catch {
+    } catch (err) {
+      console.warn('[uploadAvatar] unexpected error:', err);
       showToast('Could not upload photo. Please try again.');
       return null;
     }
@@ -538,7 +686,8 @@ function AppContent() {
 
     if (result.canceled || !result.assets?.[0]?.uri) return;
 
-    const publicUrl = await uploadAvatar(result.assets[0].uri, session.user.id);
+    const picked = result.assets[0];
+    const publicUrl = await uploadAvatar(picked.uri, session.user.id, picked.mimeType);
     if (!publicUrl) return;
 
     const { error } = await supabase
@@ -720,6 +869,11 @@ function AppContent() {
   // Appointments tab and the Home screen's "Upcoming Appointment" card ---
   const [studentAppointments, setStudentAppointments] = useState<Appointment[]>([]);
 
+  // The appointment the student tapped into from the Appointments list,
+  // so the Details screen can show its real doctor/date/location/meeting
+  // link instead of placeholder text.
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+
   useEffect(() => {
     if (!session || userRole !== 'student') {
       setStudentAppointments([]);
@@ -732,7 +886,7 @@ function AppContent() {
       supabase
         .from('appointments')
         .select(
-          `id, date, start_time, end_time, category, mode, location, status,
+          `id, date, start_time, end_time, category, mode, location, status, reference_no,
            faculty ( department, profiles ( full_name ) )`
         )
         .eq('student_id', studentId)
@@ -882,7 +1036,7 @@ function AppContent() {
   }, []);
 
   const hasAppointmentStarted = confirmedBooking
-    ? hasTimeArrived(confirmedBooking.bookedTimeRangeLabel, nowTick)
+    ? hasTimeArrived(confirmedBooking.dateKey, confirmedBooking.bookedTimeRangeLabel, nowTick)
     : false;
 
   // Which faculty's real queue this client cares about: faculty watch
@@ -905,7 +1059,7 @@ function AppContent() {
     const loadQueue = () => {
       supabase
         .from('queue_entries')
-        .select('*')
+        .select('*, appointments ( date, start_time, end_time )')
         .eq('faculty_id', queueFacultyId)
         .eq('queue_date', today)
         .order('position', { ascending: true })
@@ -915,7 +1069,12 @@ function AppContent() {
             console.log('Failed to load queue:', error.message);
             return;
           }
-          setQueue((data as DbQueueEntry[]).map(mapDbQueueEntry));
+          // The DB's `position` column just reflects insertion order —
+          // re-sort by each entry's actual scheduled appointment time so
+          // the person booked earliest is always first in line.
+          setQueue(
+            sortQueueByScheduledTime((data as DbQueueEntry[]).map(mapDbQueueEntry))
+          );
         });
     };
 
@@ -1573,14 +1732,36 @@ function AppContent() {
     const dayInfo = WEEK_DAYS.find((d) => d.date === selection.date);
     const realDateKey = dayInfo?.dateKey ?? toDateKey(new Date());
     const [startLabelPart, endLabelPart] = bookedTimeRangeLabel.split(' - ');
+    const newStartTime24 = labelTo24h(startLabelPart);
+    const newEndTime24 = labelTo24h(endLabelPart);
+
+    // Make sure moving this appointment doesn't land it on top of
+    // another appointment the student already has (excluding itself).
+    if (session) {
+      const { conflict, checkFailed } = await findStudentScheduleConflict(
+        session.user.id,
+        realDateKey,
+        newStartTime24,
+        newEndTime24,
+        confirmedBooking.bookingId
+      );
+      if (checkFailed) {
+        showToast('Could not verify your schedule — please try again.');
+        return;
+      }
+      if (conflict) {
+        showToast('You already have another appointment that overlaps this time.');
+        return;
+      }
+    }
 
     const { error: apptError } = await supabase
       .from('appointments')
       .update({
         slot_id: selection.slot.id,
         date: realDateKey,
-        start_time: labelTo24h(startLabelPart),
-        end_time: labelTo24h(endLabelPart),
+        start_time: newStartTime24,
+        end_time: newEndTime24,
         duration_minutes: selection.durationMinutes,
         mode: selection.slot.mode,
         location: selection.slot.location,
@@ -1988,6 +2169,26 @@ function AppContent() {
               const dayInfo = WEEK_DAYS.find((d) => d.date === selection.date);
               const realDateKey = dayInfo?.dateKey ?? toDateKey(new Date());
               const [startLabelPart, endLabelPart] = bookedTimeRangeLabel.split(' - ');
+              const newStartTime24 = labelTo24h(startLabelPart);
+              const newEndTime24 = labelTo24h(endLabelPart);
+
+              // Never let a student end up with two overlapping
+              // appointments — whether with this same faculty member or
+              // a different one.
+              const { conflict, checkFailed } = await findStudentScheduleConflict(
+                session.user.id,
+                realDateKey,
+                newStartTime24,
+                newEndTime24
+              );
+              if (checkFailed) {
+                showToast('Could not verify your schedule — please try again.');
+                return;
+              }
+              if (conflict) {
+                showToast('You already have an appointment that overlaps this time.');
+                return;
+              }
 
               const { data: insertedAppt, error: apptError } = await supabase
                 .from('appointments')
@@ -1996,8 +2197,8 @@ function AppContent() {
                   faculty_id: selectedFaculty.id,
                   slot_id: selection.slot.id,
                   date: realDateKey,
-                  start_time: labelTo24h(startLabelPart),
-                  end_time: labelTo24h(endLabelPart),
+                  start_time: newStartTime24,
+                  end_time: newEndTime24,
                   duration_minutes: selection.durationMinutes,
                   category: 'Consultation',
                   purpose: selection.purpose,
@@ -2105,6 +2306,15 @@ function AppContent() {
             onMorePress={() => showToast('More options coming soon')}
             onReschedule={() => setScreen('rescheduleAppointment')}
             onCancelAppointment={handleStudentCancel}
+            status={selectedAppointment?.status?.toUpperCase()}
+            doctorName={selectedAppointment?.doctorName}
+            department={selectedAppointment?.department}
+            date={selectedAppointment?.date.split(' · ')[0]}
+            time={selectedAppointment?.date.split(' · ')[1]}
+            category={selectedAppointment?.category}
+            location={selectedAppointment?.location}
+            mode={selectedAppointment?.mode}
+            referenceNo={selectedAppointment?.referenceNo}
           />
         )}
 
@@ -2113,7 +2323,7 @@ function AppContent() {
             appointments={studentAppointments}
             onMenuPress={() => openSideMenu('student')}
             onSelectAppointment={(appointment) => {
-              console.log('Selected appointment:', appointment);
+              setSelectedAppointment(appointment);
               setScreen('appointmentDetails');
             }}
             onTabChange={handleTabChange}
@@ -2460,10 +2670,127 @@ const appStyles = StyleSheet.create({
   },
 });
 
+// All @expo/vector-icons font families used anywhere in this app. Loading
+// them together, once, at startup — instead of letting each screen lazily
+// trigger its own font fetch the first time it renders — means a flaky
+// connection to the Metro dev server produces one clear, recoverable error
+// instead of random missing icons scattered across different screens as
+// you navigate (that's what "ExpoAsset.downloadAsync ... Feather.ttf" then
+// later "... MaterialCommunityIcons.ttf" was: two separate lazy font
+// fetches, each failing independently).
+const ICON_FONTS = {
+  ...Ionicons.font,
+  ...Feather.font,
+  ...FontAwesome.font,
+  ...FontAwesome5.font,
+  ...MaterialCommunityIcons.font,
+};
+
+function useIconFonts() {
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  const load = useCallback(() => {
+    setStatus('loading');
+    Font.loadAsync(ICON_FONTS)
+      .then(() => setStatus('ready'))
+      .catch((err) => {
+        // This is almost always a network problem between your device and
+        // the Metro dev server (different Wi-Fi, VPN, firewall, or LAN
+        // asset requests being blocked) rather than a bug in the app —
+        // see the retry screen below for what to try.
+        console.warn('[fonts] failed to load icon fonts:', err);
+        setStatus('error');
+      });
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { status, retry: load, forceReady: () => setStatus('ready') };
+}
+
 export default function App() {
+  const { status, retry, forceReady } = useIconFonts();
+
+  if (status === 'loading') {
+    return (
+      <View style={loadingStyles.container}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <View style={loadingStyles.container}>
+        <Text style={loadingStyles.title}>Couldn't load app icons</Text>
+        <Text style={loadingStyles.subtitle}>
+          Your phone couldn't reach the dev server to download some assets.
+          This is a network issue, not a bug in the app — try running{' '}
+          <Text style={loadingStyles.code}>npx expo start --tunnel</Text>{' '}
+          instead of the default LAN mode, or make sure your phone and
+          computer are on the same Wi-Fi.
+        </Text>
+        <TouchableOpacity style={loadingStyles.retryButton} onPress={retry} activeOpacity={0.85}>
+          <Text style={loadingStyles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={forceReady} activeOpacity={0.6}>
+          <Text style={loadingStyles.continueText}>Continue without icons</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <AppContent />
     </SafeAreaProvider>
   );
 }
+
+const loadingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.xl,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textDark,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    lineHeight: 19,
+  },
+  code: {
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    color: colors.textDark,
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  continueText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+});

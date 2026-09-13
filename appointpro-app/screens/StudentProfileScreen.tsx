@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -43,6 +43,14 @@ export default function StudentProfileScreen({
   onBack,
   onTabChange,
 }: StudentProfileScreenProps) {
+  // Falls back to the placeholder if the photo URL fails to load (e.g.
+  // the Supabase Storage bucket isn't public, or the object is missing)
+  // instead of silently showing a blank circle.
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => {
+    setImageFailed(false);
+  }, [photoUri]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -56,8 +64,19 @@ export default function StudentProfileScreen({
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileRow}>
           <View style={styles.avatarWrap}>
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+            {photoUri && !imageFailed ? (
+              <Image
+                source={{ uri: photoUri }}
+                style={styles.avatarImage}
+                onError={(e) => {
+                  console.warn(
+                    '[StudentProfileScreen] avatar failed to load:',
+                    photoUri,
+                    e.nativeEvent.error
+                  );
+                  setImageFailed(true);
+                }}
+              />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Feather name="user" size={30} color={colors.white} />
